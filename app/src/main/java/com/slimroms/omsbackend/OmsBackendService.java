@@ -82,7 +82,7 @@ public class OmsBackendService extends BaseThemeService {
                     Context themeContext = getBaseContext().createPackageContext(theme.packageName, 0);
                     String[] olays = themeContext.getAssets().list("overlays");
                     if (olays.length > 0) {
-                        info.groups.add(getOverlays(themeContext, olays));
+                        info.groups.put(OverlayGroup.OVERLAYS, getOverlays(themeContext, olays));
                     }
                     String[] fonts = themeContext.getAssets().list("fonts");
                     if (fonts.length > 0) {
@@ -90,7 +90,7 @@ public class OmsBackendService extends BaseThemeService {
                         for (String font : fonts) {
                             fontGroup.overlays.add(new Overlay(font, "systemui", false));
                         }
-                        info.groups.add(fontGroup);
+                        info.groups.put(OverlayGroup.FONTS, fontGroup);
                     }
                     String[] bootanis = themeContext.getAssets().list("bootanimation");
                     if (bootanis.length > 0) {
@@ -98,7 +98,7 @@ public class OmsBackendService extends BaseThemeService {
                         for (String bootani : bootanis) {
                             bootanimations.overlays.add(new Overlay(bootani, "systemui", false));
                         }
-                        info.groups.add(bootanimations);
+                        info.groups.put(OverlayGroup.BOOTANIMATIONS, bootanimations);
                     }
                 } catch (PackageManager.NameNotFoundException|IOException e) {
                     e.printStackTrace();
@@ -112,7 +112,7 @@ public class OmsBackendService extends BaseThemeService {
         }
 
         @Override
-        public boolean installOverlaysFromTheme(OverlayThemeInfo info) throws RemoteException {
+        public boolean installOverlaysFromTheme(Theme theme, OverlayThemeInfo info) throws RemoteException {
             return false;
         }
 
