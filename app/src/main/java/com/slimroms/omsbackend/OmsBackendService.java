@@ -9,9 +9,7 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.RemoteException;
 import android.text.TextUtils;
-import android.util.ArrayMap;
 import android.util.Log;
-import android.util.Pair;
 
 import com.slimroms.themecore.BaseThemeHelper;
 import com.slimroms.themecore.BaseThemeService;
@@ -24,7 +22,6 @@ import com.slimroms.themecore.Theme;
 import org.apache.commons.io.IOUtils;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,8 +39,6 @@ public class OmsBackendService extends BaseThemeService {
     }
 
     private final class Helper extends BaseThemeHelper {
-
-        private HashMap<String, Theme> mThemes = new HashMap<>();
 
         @Override
         public int getThemePackages(List<Theme> themes) throws RemoteException {
@@ -64,10 +59,7 @@ public class OmsBackendService extends BaseThemeService {
                             PackageInfo pInfo = pm.getPackageInfo(info.packageName, 0);
                             Theme theme = createTheme(name, info.packageName,
                                     Integer.toString(pInfo.versionCode), author, icon);
-                            if (!mThemes.containsKey(theme.packageName)) {
-                                themes.add(theme);
-                                mThemes.put(theme.packageName, theme);
-                            }
+                            themes.add(theme);
                         } catch (PackageManager.NameNotFoundException e) {
                             e.printStackTrace();
                         }
@@ -79,8 +71,7 @@ public class OmsBackendService extends BaseThemeService {
 
         @Override
         public Theme getThemeByPackage(String packageName) {
-            Log.d("TEST", "getThemeByPackage" + " : packageName=" + packageName);
-            return mThemes.get(packageName);
+            return getTheme(packageName);
         }
 
         @Override
