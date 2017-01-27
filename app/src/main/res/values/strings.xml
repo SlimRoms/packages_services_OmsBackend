@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">OmsBackend</string>
+
+    <string name="overlays_variant_substitute">%s&#8230;</string>
+
+    <string name="overlays_variant_default_1a">type1a variant&#8230;</string>
+    <string name="overlays_variant_default_1b">type1b variant&#8230;</string>
+    <string name="overlays_variant_default_1c">type1c variant&#8230;</string>
+    <string name="overlays_variant_default_2">type2 variant&#8230;</string>
+    <string name="overlays_variant_default_3">default base variant&#8230;</string>
 </resources>
