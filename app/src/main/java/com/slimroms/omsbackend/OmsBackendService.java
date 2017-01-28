@@ -169,6 +169,12 @@ public class OmsBackendService extends BaseThemeService {
                 }
             }
             if (overlay != null) {
+                try {
+                    Drawable d = getPackageManager().getApplicationIcon(themeContext.getPackageName());
+                    overlay.overlayImage = ((BitmapDrawable) d).getBitmap();
+                } catch (PackageManager.NameNotFoundException e) {
+                    e.printStackTrace();
+                }
                 loadOverlayFlavors(themeContext, overlay);
                 group.overlays.add(overlay);
             }
@@ -266,7 +272,10 @@ public class OmsBackendService extends BaseThemeService {
     private File setupCache(String packageName) {
         File cache = new File(getCacheDir(), packageName);
         if (!cache.exists()) {
-            cache.mkdirs();
+            if (!cache.mkdirs()) {
+                Log.e("OmsBackendService", "unable to create directory : "
+                        + cache.getAbsolutePath());
+            }
         }
         return cache;
     }
