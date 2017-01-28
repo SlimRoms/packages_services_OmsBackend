@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
@@ -21,10 +22,14 @@ import com.slimroms.themecore.Theme;
 
 import org.apache.commons.io.IOUtils;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static org.apache.commons.io.FileUtils.copyInputStreamToFile;
 
 public class OmsBackendService extends BaseThemeService {
     @Override
@@ -113,6 +118,18 @@ public class OmsBackendService extends BaseThemeService {
 
         @Override
         public boolean installOverlaysFromTheme(Theme theme, OverlayThemeInfo info) throws RemoteException {
+            try {
+                File themeCache = setupCache(theme.packageName);
+                Context themeContext = getBaseContext().createPackageContext(theme.packageName, 0);
+                OverlayGroup overlays = info.groups.get(OverlayGroup.OVERLAYS);
+                for (Overlay overlay : overlays.overlays) {
+                    File overlayFolder = new File(themeCache, overlay.targetPackage);
+                    copyAssetFolder(themeContext.getAssets(), "overlays/" + overlay.targetPackage, overlayFolder.getAbsolutePath() + "/res");
+                }
+                return true;
+            } catch (PackageManager.NameNotFoundException e) {
+                e.printStackTrace();
+            }
             return false;
         }
 
@@ -244,5 +261,54 @@ public class OmsBackendService extends BaseThemeService {
                 || pName.equals("com.android.systemui.navbars")
                 || pName.equals("com.android.systemui.statusbars")
                 || pName.equals("com.android.systemui.tiles");
+    }
+
+    private File setupCache(String packageName) {
+        File cache = new File(getCacheDir(), packageName);
+        if (!cache.exists()) {
+            cache.mkdirs();
+        }
+        return cache;
+    }
+
+    private boolean copyAssetFolder(AssetManager am, String assetPath, String path) {
+        try {
+            String[] files = am.list(assetPath);
+            if (!new File(path).exists() && !new File(path).mkdirs()) {
+                throw new RuntimeException("cannot create directory: " + path);
+            }
+            boolean res = true;
+            for (String file : files) {
+                if (am.list(assetPath + "/" + file).length == 0) {
+                    res &= copyAsset(am, assetPath + "/" + file, path + "/" + file);
+                } else {
+                    res &= copyAssetFolder(am, assetPath + "/" + file, path + "/" + file);
+                }
+            }
+            return res;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    private boolean copyAsset(AssetManager assetManager,
+                                    String fromAssetPath, String toPath) {
+        InputStream in;
+
+        File parent = new File(toPath).getParentFile();
+        if (!parent.exists() && !parent.mkdirs()) {
+            Log.d("OmsBackendService", "Unable to create " + parent.getAbsolutePath());
+        }
+
+        try {
+            in = assetManager.open(fromAssetPath);
+            copyInputStreamToFile(in, new File(toPath));
+            in.close();
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 }
