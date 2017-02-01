@@ -32,6 +32,17 @@ import java.util.Map;
 import static org.apache.commons.io.FileUtils.copyInputStreamToFile;
 
 public class OmsBackendService extends BaseThemeService {
+    private HashMap<String, String> mSystemUIPackages = new HashMap<>();
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        mSystemUIPackages.put("com.android.systemui.headers", "System UI Headers");
+        mSystemUIPackages.put("com.android.systemui.navbars", "System UI Navigation");
+        mSystemUIPackages.put("com.android.systemui.statusbars", "System UI Status Bar Icons");
+        mSystemUIPackages.put("com.android.systemui.tiles", "System UI QS Tile Icons");
+    }
+
     @Override
     public BaseThemeHelper getThemeHelper() {
         Log.d("TEST", "getThemeHelper");
@@ -249,24 +260,11 @@ public class OmsBackendService extends BaseThemeService {
     }
 
     private String getSystemUIOvelayName(String pName) {
-        switch (pName) {
-            case "com.android.systemui.headers":
-                return "System UI Headers";
-            case "com.android.systemui.navbars":
-                return "System UI Navigation";
-            case "com.android.systemui.statusbars":
-                return "System UI Status Bar Icons";
-            case "com.android.systemui.tiles":
-                return "System UI QS Tile Icons";
-        }
-        return pName;
+        return mSystemUIPackages.get(pName);
     }
 
     private boolean isSystemUIOverlay(String pName) {
-       return pName.equals("com.android.systemui.headers")
-                || pName.equals("com.android.systemui.navbars")
-                || pName.equals("com.android.systemui.statusbars")
-                || pName.equals("com.android.systemui.tiles");
+       return mSystemUIPackages.containsKey(pName);
     }
 
     private File setupCache(String packageName) {
