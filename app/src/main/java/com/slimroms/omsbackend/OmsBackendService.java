@@ -135,7 +135,27 @@ public class OmsBackendService extends BaseThemeService {
                 OverlayGroup overlays = info.groups.get(OverlayGroup.OVERLAYS);
                 for (Overlay overlay : overlays.overlays) {
                     File overlayFolder = new File(themeCache, overlay.targetPackage);
-                    copyAssetFolder(themeContext.getAssets(), "overlays/" + overlay.targetPackage, overlayFolder.getAbsolutePath() + "/res");
+                    copyAssetFolder(themeContext.getAssets(), "overlays/"
+                            + overlay.targetPackage, overlayFolder.getAbsolutePath() + "/res");
+                    // TODO: type 3 overlays
+                    if (!TextUtils.isEmpty(overlays.selectedStyle)) {
+                        copyAssetFolder(themeContext.getAssets(), "overlays/"
+                                + overlay.targetPackage + overlays.selectedStyle,
+                                overlayFolder.getAbsolutePath() + "/res");
+                    }
+
+                    // handle type 2 overlay if non-default selected
+                    OverlayFlavor type2 = overlay.flavors.get("type2");
+                    if (type2 != null) {
+                        copyAssetFolder(themeContext.getAssets(), "overlays/"
+                                + overlay.targetPackage + "/" + type2.selected,
+                                overlayFolder.getAbsolutePath() + "/res");
+                    }
+
+                    // handle type1 last
+                    handleExtractType1Flavor(themeContext, overlay, "type1a", overlayFolder);
+                    handleExtractType1Flavor(themeContext, overlay, "type1b", overlayFolder);
+                    handleExtractType1Flavor(themeContext, overlay, "type1c", overlayFolder);
                 }
                 return true;
             } catch (PackageManager.NameNotFoundException e) {
@@ -232,7 +252,7 @@ public class OmsBackendService extends BaseThemeService {
                     }
                 }
             }
-            overlay.flavors.addAll(flavorMap.values());
+            overlay.flavors.putAll(flavorMap);
         }
     }
 
@@ -316,6 +336,29 @@ public class OmsBackendService extends BaseThemeService {
         } catch (Exception e) {
             e.printStackTrace();
             return false;
+        }
+    }
+
+    private void handleExtractType1Flavor(Context themeContext, Overlay overlay, String typeName,
+                                          File overlayFolder) {
+        OverlayFlavor type = overlay.flavors.get(typeName);
+        if (type != null) {
+            AssetManager am = themeContext.getAssets();
+            try {
+                String of = "overlays/" + overlay.targetPackage + "/res";
+                for (String n : am.list(of)) {
+                    if (n.contains("values")) {
+                        for (String s : am.list(of + "/" + n)) {
+                            if (s.equals(type.key)) {
+                                copyAsset(am, "overlays/" + overlay.targetPackage
+                                                + "/" + type.selected,
+                                        overlayFolder.getAbsolutePath() + "/res/"
+                                                + n + "/" + type.key);
+                            }
+                        }
+                    }
+                }
+            } catch (IOException e) {}
         }
     }
 }
