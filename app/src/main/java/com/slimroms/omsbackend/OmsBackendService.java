@@ -6,6 +6,7 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.RemoteException;
@@ -201,8 +202,8 @@ public class OmsBackendService extends BaseThemeService {
             }
             if (overlay != null) {
                 try {
-                    Drawable d = getPackageManager().getApplicationIcon(themeContext.getPackageName());
-                    overlay.overlayImage = ((BitmapDrawable) d).getBitmap();
+                    Drawable d = getPackageManager().getApplicationIcon(getTargetPackage(overlay.targetPackage));
+                    overlay.overlayImage = drawableToBitmap(d);
                 } catch (PackageManager.NameNotFoundException e) {
                     e.printStackTrace();
                 }
@@ -212,6 +213,35 @@ public class OmsBackendService extends BaseThemeService {
         }
         getThemeStyles(themeContext, group);
         return group;
+    }
+
+    private String getTargetPackage(String targetPackage) {
+        if (mSystemUIPackages.containsKey(targetPackage)) {
+            return "com.android.systemui";
+        }
+        return targetPackage;
+    }
+
+    public static Bitmap drawableToBitmap (Drawable drawable) {
+        Bitmap bitmap = null;
+
+        if (drawable instanceof BitmapDrawable) {
+            BitmapDrawable bitmapDrawable = (BitmapDrawable) drawable;
+            if(bitmapDrawable.getBitmap() != null) {
+                return bitmapDrawable.getBitmap();
+            }
+        }
+
+        if(drawable.getIntrinsicWidth() <= 0 || drawable.getIntrinsicHeight() <= 0) {
+            bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888); // Single color bitmap will be created of 1x1 pixel
+        } else {
+            bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
+        }
+
+        Canvas canvas = new Canvas(bitmap);
+        drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+        drawable.draw(canvas);
+        return bitmap;
     }
 
     private void loadOverlayFlavors(Context themeContext, Overlay overlay) {
