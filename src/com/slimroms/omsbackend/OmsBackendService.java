@@ -1,6 +1,7 @@
 package com.slimroms.omsbackend;
 
 import android.content.Context;
+import android.content.om.IOverlayManager;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -10,6 +11,8 @@ import android.graphics.Canvas;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.RemoteException;
+import android.os.ServiceManager;
+import android.os.UserHandle;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -24,6 +27,7 @@ import com.slimroms.themecore.Theme;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,10 +37,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import kellinwood.security.zipsigner.ZipSigner;
+
 import static org.apache.commons.io.FileUtils.copyInputStreamToFile;
 
 public class OmsBackendService extends BaseThemeService {
     private HashMap<String, String> mSystemUIPackages = new HashMap<>();
+
+    private PackageManagerUtils mPMUtils;
+    private IOverlayManager mOverlayManager;
 
     @Override
     public void onCreate() {
@@ -45,6 +54,8 @@ public class OmsBackendService extends BaseThemeService {
         mSystemUIPackages.put("com.android.systemui.navbars", "System UI Navigation");
         mSystemUIPackages.put("com.android.systemui.statusbars", "System UI Status Bar Icons");
         mSystemUIPackages.put("com.android.systemui.tiles", "System UI QS Tile Icons");
+
+        mOverlayManager = IOverlayManager.Stub.asInterface(ServiceManager.getService("overlay"));
     }
 
     @Override
@@ -133,6 +144,9 @@ public class OmsBackendService extends BaseThemeService {
 
         @Override
         public boolean installOverlaysFromTheme(Theme theme, OverlayThemeInfo info) throws RemoteException {
+            if (mPMUtils == null) {
+                mPMUtils = new PackageManagerUtils(getBaseContext());
+            }
             try {
                 File themeCache = setupCache(theme.packageName);
                 Context themeContext = getBaseContext().createPackageContext(theme.packageName, 0);
@@ -167,6 +181,7 @@ public class OmsBackendService extends BaseThemeService {
 
                     generateManifest(theme, overlay, overlayFolder.getAbsolutePath());
                     compileOverlay(theme, overlay, overlayFolder.getAbsolutePath());
+                    installAndEnable(getCacheDir().getAbsolutePath() + "/" + theme.packageName + "/overlays/" + theme.packageName + "." + overlay.targetPackage + ".apk", theme.packageName + "." + overlay.targetPackage);
                 }
                 notifyInstallComplete();
                 return true;
@@ -199,9 +214,9 @@ public class OmsBackendService extends BaseThemeService {
 
     private void generateManifest(Theme theme, Overlay overlay, String path) {
         try {
-            String manifestContent = IOUtils.toString(getBaseContext().getAssets().open("AndroidManifets.xml"))
+            String manifestContent = IOUtils.toString(getBaseContext().getAssets().open("AndroidManifest.xml"))
                     .replace("<<TARGET_PACKAGE>>", overlay.targetPackage)
-                    .replace("<<PACKAGE_NAME", theme.packageName + "." + overlay.targetPackage);
+                    .replace("<<PACKAGE_NAME>>", theme.packageName + "." + overlay.targetPackage);
             FileUtils.writeStringToFile(new File(path, "AndroidManifest.xml"), manifestContent);
         } catch (IOException e) {
             e.printStackTrace();
@@ -209,28 +224,75 @@ public class OmsBackendService extends BaseThemeService {
     }
 
     private void compileOverlay(Theme theme, Overlay overlay, String overlayPath) {
+        File overlayFolder = new File(getCacheDir() + "/" + theme.packageName + "/overlays");
+        if (!overlayFolder.exists()) {
+            overlayFolder.mkdirs();
+        }
         try {
             Process nativeApp = Runtime.getRuntime().exec(new String[]{
                     getAapt(), "p",
                     "-M", overlayPath + "/AndroidManifest.xml",
                     "-S", overlayPath + "/res",
-                    "-I", overlayPath + "/system/framework/framework-res.apk",
-                    "-F", getCacheDir() + "/" + theme.packageName + "/overlays/" + theme.packageName + "." + overlay.targetPackage + ".apk"
+                    "-I", "/system/framework/framework-res.apk",
+                    "-F", overlayFolder.getAbsolutePath() + "/" + theme.packageName + "." + overlay.targetPackage + "_unsigned.apk"
             });
             nativeApp.waitFor();
-        } catch (IOException|InterruptedException e) {
+            Log.d("TEST-ERROR", "e=" + IOUtils.toString(nativeApp.getErrorStream()));
+            Log.d("TEST-OUT", "o=" + IOUtils.toString(nativeApp.getInputStream()));
+            // sign
+            ZipSigner zipSigner = new ZipSigner();
+            zipSigner.setKeymode("testkey");
+            zipSigner.signZip(overlayFolder.getAbsolutePath() + "/" + theme.packageName + "." + overlay.targetPackage + "_unsigned.apk",
+                overlayFolder.getAbsolutePath() + "/" + theme.packageName + "." + overlay.targetPackage + ".apk");
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
     private String getAapt() {
-        if (new File("/system/bin/aapt").exists()) {
+        String path = getFilesDir().getAbsolutePath() + "/aapt";
+        if (new File(path).exists()) {
             Log.d("TEST", "found aapt");
-            return "/system/bin/aapt";
+        } else {
+            try {
+                copyInputStreamToFile(getAssets().open("aapt"), new File(path));
+            } catch (IOException e) {
+                e.printStackTrace();
+                return null;
+            }
         }
-        return null;
+        runCommand("chmod 777 " + path);
+        return path;
     }
 
-    private void installAndEnable() {
+    public static void runCommand(String cmd) {
+        try {
+            Process process = Runtime.getRuntime().exec("sh");
+            DataOutputStream os = new DataOutputStream(
+                    process.getOutputStream());
+            os.writeBytes(cmd + "\n");
+            os.writeBytes("exit\n");
+            os.flush();
+
+            int exitCode = process.waitFor();
+            String output = IOUtils.toString(process.getInputStream());
+            String error = IOUtils.toString(process.getErrorStream());
+            if (exitCode != 0 || (!"".equals(error) && null != error)) {
+                Log.e("Error, cmd: " + cmd, error);
+            }
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void installAndEnable(String apk, String packageName) {
+        try {
+            if (mPMUtils.installPackage(apk)) {
+                mOverlayManager.setEnabled(packageName, true, UserHandle.USER_CURRENT, false);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private OverlayGroup getOverlays(Context themeContext, String[] packages) {

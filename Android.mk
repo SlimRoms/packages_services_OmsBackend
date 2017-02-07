@@ -3,7 +3,13 @@ LOCAL_ASSETS_TEMP_PATH := $(call intermediates-dir-for,APPS,OmsBackend,,COMMON)/
 
 include $(CLEAR_VARS)
 LOCAL_PREBUILT_STATIC_JAVA_LIBRARIES := \
-    apache-commons-io:libs/commons-io-2.5.jar
+    apache-commons-io:libs/commons-io-2.5.jar \
+    zipsigner:libs/zipsigner-lib-1.17.jar \
+    zipio:libs/zipio-lib-1.8.jar \
+    kellinwood-logging-android:libs/kellinwood-logging-android-1.4.jar \
+    kellinwood-logging-lib:libs/kellinwood-logging-lib-1.1.jar \
+    kellinwood-logging-log4j:libs/kellinwood-logging-log4j-1.0.jar
+
 include $(BUILD_MULTI_PREBUILT)
 
 # DEVICE AAPT
@@ -55,8 +61,14 @@ LOCAL_MODULE_TAGS := optional
 
 LOCAL_STATIC_JAVA_LIBRARIES := \
     android-support-v7-appcompat \
+    android-support-v4 \
     theme-core \
-    apache-commons-io
+    apache-commons-io \
+    zipsigner \
+    zipio \
+    kellinwood-logging-android \
+    kellinwood-logging-lib \
+    kellinwood-logging-log4j
 
 LOCAL_SRC_FILES := $(call all-java-files-under, src)
 
@@ -65,7 +77,7 @@ LOCAL_RESOURCE_DIR := \
     frameworks/support/v7/appcompat/res \
     frameworks/opt/theme-core/res
 
-LOCAL_ASSET_DIR := $(LOCAL_ASSETS_TEMP_PATH)
+LOCAL_ASSET_DIR := $(LOCAL_ASSETS_TEMP_PATH) $(LOCAL_PATH)/assets
 LOCAL_PROGUARD_ENABLED := disabled
 LOCAL_CERTIFICATE := platform
 LOCAL_PRIVILEGED_MODULE := true
