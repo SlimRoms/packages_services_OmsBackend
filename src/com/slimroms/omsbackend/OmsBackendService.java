@@ -1,7 +1,9 @@
 package com.slimroms.omsbackend;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.om.IOverlayManager;
+import android.content.om.OverlayInfo;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -46,6 +48,8 @@ public class OmsBackendService extends BaseThemeService {
 
     private PackageManagerUtils mPMUtils;
     private IOverlayManager mOverlayManager;
+
+    private Map<String, List<OverlayInfo>> mOverlays = new HashMap<>();
 
     @Override
     public void onCreate() {
@@ -109,25 +113,26 @@ public class OmsBackendService extends BaseThemeService {
         public void getThemeContent(Theme theme, OverlayThemeInfo info) throws RemoteException {
             PackageManager pm = getPackageManager();
             if (pm != null) {
+                SharedPreferences prefs = getSharedPreferences(theme.packageName + "_prefs", 0);
                 try {
                     Context themeContext = getBaseContext().createPackageContext(theme.packageName, 0);
                     String[] olays = themeContext.getAssets().list("overlays");
                     if (olays.length > 0) {
-                        info.groups.put(OverlayGroup.OVERLAYS, getOverlays(themeContext, olays));
+                        info.groups.put(OverlayGroup.OVERLAYS, getOverlays(themeContext, olays, prefs));
                     }
                     String[] fonts = themeContext.getAssets().list("fonts");
                     if (fonts.length > 0) {
-                        OverlayGroup fontGroup = new OverlayGroup("Fonts");
+                        OverlayGroup fontGroup = new OverlayGroup();
                         for (String font : fonts) {
-                            fontGroup.overlays.add(new Overlay(font, "systemui", false));
+                            fontGroup.overlays.add(new Overlay(font, "", false));
                         }
                         info.groups.put(OverlayGroup.FONTS, fontGroup);
                     }
                     String[] bootanis = themeContext.getAssets().list("bootanimation");
                     if (bootanis.length > 0) {
-                        OverlayGroup bootanimations = new OverlayGroup("Bootanimations");
+                        OverlayGroup bootanimations = new OverlayGroup();
                         for (String bootani : bootanis) {
-                            bootanimations.overlays.add(new Overlay(bootani, "systemui", false));
+                            bootanimations.overlays.add(new Overlay(bootani, "", false));
                         }
                         info.groups.put(OverlayGroup.BOOTANIMATIONS, bootanimations);
                     }
@@ -151,6 +156,11 @@ public class OmsBackendService extends BaseThemeService {
                 File themeCache = setupCache(theme.packageName);
                 Context themeContext = getBaseContext().createPackageContext(theme.packageName, 0);
                 OverlayGroup overlays = info.groups.get(OverlayGroup.OVERLAYS);
+                SharedPreferences prefs = getSharedPreferences(theme.packageName + "_prefs", 0);
+                SharedPreferences.Editor edit = prefs.edit();
+                if (!TextUtils.isEmpty(overlays.selectedStyle)) {
+                    edit.putString("selectedStyle", overlays.selectedStyle);
+                }
                 for (Overlay overlay : overlays.overlays) {
                     if (!overlay.checked) continue;
                     notifyInstallProgress(overlays.overlays.size(),
@@ -172,17 +182,20 @@ public class OmsBackendService extends BaseThemeService {
                         copyAssetFolder(themeContext.getAssets(), "overlays/"
                                 + overlay.targetPackage + "/" + type2.selected,
                                 overlayFolder.getAbsolutePath() + "/res");
+                        edit.putString(overlay.targetPackage + "_type2", type2.selected);
                     }
 
                     // handle type1 last
-                    handleExtractType1Flavor(themeContext, overlay, "type1a", overlayFolder);
-                    handleExtractType1Flavor(themeContext, overlay, "type1b", overlayFolder);
-                    handleExtractType1Flavor(themeContext, overlay, "type1c", overlayFolder);
+                    handleExtractType1Flavor(themeContext, overlay, "type1a", overlayFolder, edit);
+                    handleExtractType1Flavor(themeContext, overlay, "type1b", overlayFolder, edit);
+                    handleExtractType1Flavor(themeContext, overlay, "type1c", overlayFolder, edit);
 
                     generateManifest(theme, overlay, overlayFolder.getAbsolutePath());
                     compileOverlay(theme, overlay, overlayFolder.getAbsolutePath());
                     installAndEnable(getCacheDir().getAbsolutePath() + "/" + theme.packageName + "/overlays/" + theme.packageName + "." + overlay.targetPackage + ".apk", theme.packageName + "." + overlay.targetPackage);
                 }
+                edit.apply();
+                mOverlayManager.refresh(UserHandle.USER_CURRENT);
                 notifyInstallComplete();
                 return true;
             } catch (PackageManager.NameNotFoundException e) {
@@ -213,9 +226,13 @@ public class OmsBackendService extends BaseThemeService {
     }
 
     private void generateManifest(Theme theme, Overlay overlay, String path) {
+        String targetPackage = overlay.targetPackage;
+        if (mSystemUIPackages.containsKey(targetPackage)) {
+            targetPackage = "com.android.systemui";
+        }
         try {
             String manifestContent = IOUtils.toString(getBaseContext().getAssets().open("AndroidManifest.xml"))
-                    .replace("<<TARGET_PACKAGE>>", overlay.targetPackage)
+                    .replace("<<TARGET_PACKAGE>>", targetPackage)
                     .replace("<<PACKAGE_NAME>>", theme.packageName + "." + overlay.targetPackage);
             FileUtils.writeStringToFile(new File(path, "AndroidManifest.xml"), manifestContent);
         } catch (IOException e) {
@@ -288,15 +305,24 @@ public class OmsBackendService extends BaseThemeService {
     private void installAndEnable(String apk, String packageName) {
         try {
             if (mPMUtils.installPackage(apk)) {
-                mOverlayManager.setEnabled(packageName, true, UserHandle.USER_CURRENT, false);
+                mOverlayManager.setEnabled(packageName, true, UserHandle.USER_CURRENT, true);
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private OverlayGroup getOverlays(Context themeContext, String[] packages) {
-        OverlayGroup group = new OverlayGroup("Overlays");
+    private OverlayGroup getOverlays(Context themeContext, String[] packages, SharedPreferences prefs) {
+        OverlayGroup group = new OverlayGroup();
+
+        Map<String, List<OverlayInfo>> overlays = new HashMap<>();
+        try {
+            overlays = mOverlayManager.getAllOverlays(UserHandle.USER_CURRENT);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+        group.selectedStyle = prefs.getString("selectedStyle", "");
+
         for (String p : packages) {
             Overlay overlay = null;
             if (isSystemUIOverlay(p)) {
@@ -310,6 +336,14 @@ public class OmsBackendService extends BaseThemeService {
                 }
             }
             if (overlay != null) {
+                List<OverlayInfo> ois = overlays.get(getTargetPackage(overlay.targetPackage));
+                if (ois != null) {
+                    for (OverlayInfo oi : ois) {
+                        if (oi.packageName.equals(themeContext.getPackageName() + "." + overlay.targetPackage)) {
+                            overlay.checked = true;
+                        }
+                    }
+                }
                 try {
                     Drawable d = getPackageManager().getApplicationIcon(getTargetPackage(overlay.targetPackage));
                     overlay.overlayImage = drawableToBitmap(d);
@@ -317,6 +351,12 @@ public class OmsBackendService extends BaseThemeService {
                     e.printStackTrace();
                 }
                 loadOverlayFlavors(themeContext, overlay);
+                for (OverlayFlavor flavor : overlay.flavors.values()) {
+                    String sel = prefs.getString(overlay.targetPackage + "_" + flavor.key, "");
+                    if (!TextUtils.isEmpty(sel)) {
+                        flavor.selected = sel;
+                    }
+                }
                 group.overlays.add(overlay);
             }
         }
@@ -485,7 +525,7 @@ public class OmsBackendService extends BaseThemeService {
     }
 
     private void handleExtractType1Flavor(Context themeContext, Overlay overlay, String typeName,
-                                          File overlayFolder) {
+                                          File overlayFolder, SharedPreferences.Editor edit) {
         OverlayFlavor type = overlay.flavors.get(typeName);
         if (type != null) {
             AssetManager am = themeContext.getAssets();
@@ -503,6 +543,7 @@ public class OmsBackendService extends BaseThemeService {
                         }
                     }
                 }
+                edit.putString(overlay.targetPackage + "_" + typeName, type.selected);
             } catch (IOException e) {}
         }
     }
