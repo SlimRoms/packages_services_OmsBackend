@@ -64,7 +64,6 @@ public class OmsBackendService extends BaseThemeService {
 
     @Override
     public BaseThemeHelper getThemeHelper() {
-        Log.d("TEST", "getThemeHelper");
         return new Helper();
     }
 
@@ -115,10 +114,12 @@ public class OmsBackendService extends BaseThemeService {
             if (pm != null) {
                 SharedPreferences prefs = getSharedPreferences(theme.packageName + "_prefs", 0);
                 try {
-                    Context themeContext = getBaseContext().createPackageContext(theme.packageName, 0);
+                    Context themeContext =
+                            getBaseContext().createPackageContext(theme.packageName, 0);
                     String[] olays = themeContext.getAssets().list("overlays");
                     if (olays.length > 0) {
-                        info.groups.put(OverlayGroup.OVERLAYS, getOverlays(themeContext, olays, prefs));
+                        info.groups.put(OverlayGroup.OVERLAYS,
+                                getOverlays(themeContext, olays, prefs));
                     }
                     String[] fonts = themeContext.getAssets().list("fonts");
                     if (fonts.length > 0) {
@@ -148,7 +149,8 @@ public class OmsBackendService extends BaseThemeService {
         }
 
         @Override
-        public boolean installOverlaysFromTheme(Theme theme, OverlayThemeInfo info) throws RemoteException {
+        public boolean installOverlaysFromTheme(Theme theme, OverlayThemeInfo info)
+                throws RemoteException {
             if (mPMUtils == null) {
                 mPMUtils = new PackageManagerUtils(getBaseContext());
             }
@@ -167,9 +169,8 @@ public class OmsBackendService extends BaseThemeService {
                             overlays.overlays.indexOf(overlay));
                     File overlayFolder = new File(themeCache, overlay.targetPackage);
                     copyAssetFolder(themeContext.getAssets(), "overlays/"
-                            + overlay.targetPackage + "/res", overlayFolder.getAbsolutePath() + "/res");
-                    // TODO: type 3 overlays
-                    Log.d("TEST", "theme style=" + overlays.selectedStyle);
+                            + overlay.targetPackage + "/res",
+                            overlayFolder.getAbsolutePath() + "/res");
                     if (!TextUtils.isEmpty(overlays.selectedStyle)) {
                         copyAssetFolder(themeContext.getAssets(), "overlays/"
                                 + overlay.targetPackage + "/" + overlays.selectedStyle,
@@ -192,7 +193,9 @@ public class OmsBackendService extends BaseThemeService {
 
                     generateManifest(theme, overlay, overlayFolder.getAbsolutePath());
                     compileOverlay(theme, overlay, overlayFolder.getAbsolutePath());
-                    installAndEnable(getCacheDir().getAbsolutePath() + "/" + theme.packageName + "/overlays/" + theme.packageName + "." + overlay.targetPackage + ".apk", theme.packageName + "." + overlay.targetPackage);
+                    installAndEnable(getCacheDir().getAbsolutePath() + "/" + theme.packageName +
+                            "/overlays/" + theme.packageName + "." + overlay.targetPackage +
+                            ".apk", theme.packageName + "." + overlay.targetPackage);
                 }
                 edit.apply();
                 mOverlayManager.refresh(UserHandle.USER_CURRENT);
@@ -231,7 +234,8 @@ public class OmsBackendService extends BaseThemeService {
             targetPackage = "com.android.systemui";
         }
         try {
-            String manifestContent = IOUtils.toString(getBaseContext().getAssets().open("AndroidManifest.xml"))
+            String manifestContent = IOUtils.toString(
+                    getBaseContext().getAssets().open("AndroidManifest.xml"))
                     .replace("<<TARGET_PACKAGE>>", targetPackage)
                     .replace("<<PACKAGE_NAME>>", theme.packageName + "." + overlay.targetPackage);
             FileUtils.writeStringToFile(new File(path, "AndroidManifest.xml"), manifestContent);
@@ -251,16 +255,17 @@ public class OmsBackendService extends BaseThemeService {
                     "-M", overlayPath + "/AndroidManifest.xml",
                     "-S", overlayPath + "/res",
                     "-I", "/system/framework/framework-res.apk",
-                    "-F", overlayFolder.getAbsolutePath() + "/" + theme.packageName + "." + overlay.targetPackage + "_unsigned.apk"
+                    "-F", overlayFolder.getAbsolutePath() + "/" + theme.packageName +
+                    "." + overlay.targetPackage + "_unsigned.apk"
             });
             nativeApp.waitFor();
-            Log.d("TEST-ERROR", "e=" + IOUtils.toString(nativeApp.getErrorStream()));
-            Log.d("TEST-OUT", "o=" + IOUtils.toString(nativeApp.getInputStream()));
             // sign
             ZipSigner zipSigner = new ZipSigner();
             zipSigner.setKeymode("testkey");
-            zipSigner.signZip(overlayFolder.getAbsolutePath() + "/" + theme.packageName + "." + overlay.targetPackage + "_unsigned.apk",
-                overlayFolder.getAbsolutePath() + "/" + theme.packageName + "." + overlay.targetPackage + ".apk");
+            zipSigner.signZip(overlayFolder.getAbsolutePath() + "/" +
+                theme.packageName + "." + overlay.targetPackage + "_unsigned.apk",
+                overlayFolder.getAbsolutePath() + "/" + theme.packageName +
+                "." + overlay.targetPackage + ".apk");
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -269,7 +274,6 @@ public class OmsBackendService extends BaseThemeService {
     private String getAapt() {
         String path = getFilesDir().getAbsolutePath() + "/aapt";
         if (new File(path).exists()) {
-            Log.d("TEST", "found aapt");
         } else {
             try {
                 copyInputStreamToFile(getAssets().open("aapt"), new File(path));
@@ -312,7 +316,8 @@ public class OmsBackendService extends BaseThemeService {
         }
     }
 
-    private OverlayGroup getOverlays(Context themeContext, String[] packages, SharedPreferences prefs) {
+    private OverlayGroup getOverlays(Context themeContext,
+            String[] packages, SharedPreferences prefs) {
         OverlayGroup group = new OverlayGroup();
 
         Map<String, List<OverlayInfo>> overlays = new HashMap<>();
@@ -339,13 +344,15 @@ public class OmsBackendService extends BaseThemeService {
                 List<OverlayInfo> ois = overlays.get(getTargetPackage(overlay.targetPackage));
                 if (ois != null) {
                     for (OverlayInfo oi : ois) {
-                        if (oi.packageName.equals(themeContext.getPackageName() + "." + overlay.targetPackage)) {
+                        if (oi.packageName.equals(themeContext.getPackageName() +
+                                "." + overlay.targetPackage)) {
                             overlay.checked = true;
                         }
                     }
                 }
                 try {
-                    Drawable d = getPackageManager().getApplicationIcon(getTargetPackage(overlay.targetPackage));
+                    Drawable d = getPackageManager().getApplicationIcon(
+                            getTargetPackage(overlay.targetPackage));
                     overlay.overlayImage = drawableToBitmap(d);
                 } catch (PackageManager.NameNotFoundException e) {
                     e.printStackTrace();
@@ -382,9 +389,11 @@ public class OmsBackendService extends BaseThemeService {
         }
 
         if(drawable.getIntrinsicWidth() <= 0 || drawable.getIntrinsicHeight() <= 0) {
-            bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888); // Single color bitmap will be created of 1x1 pixel
+            // Single color bitmap will be created of 1x1 pixel
+            bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
         } else {
-            bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
+            bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth(),
+                    drawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
         }
 
         Canvas canvas = new Canvas(bitmap);
@@ -403,7 +412,6 @@ public class OmsBackendService extends BaseThemeService {
         if (types != null) {
             Map<String, OverlayFlavor> flavorMap = new HashMap<>();
             for (String flavor : types) {
-                Log.d("TEST", "flavor=" + flavor);
                 if (flavor.contains("res")
                         || flavor.contains("type3")) {
                     continue;
@@ -413,7 +421,6 @@ public class OmsBackendService extends BaseThemeService {
                         try {
                             String flavorName = IOUtils.toString(themeContext.getAssets().open(
                                     "overlays/" + overlay.targetPackage + "/" + flavor));
-                            Log.d("TEST", "flavorName=" + flavorName);
                             flavorMap.put(flavor, new OverlayFlavor(flavorName, flavor));
                         } catch (IOException e) {
                             // ignore
@@ -424,7 +431,6 @@ public class OmsBackendService extends BaseThemeService {
                             flavorName = flavorName.substring(0, flavorName.indexOf("."));
                         }
                         String key = flavor.substring(0, flavor.indexOf("_"));
-                        Log.d("TEST", "key=" + key);
                         if (flavorMap.containsKey(key)) {
                             flavorMap.get(key).flavors.put(flavor, flavorName);
                         }
@@ -478,9 +484,6 @@ public class OmsBackendService extends BaseThemeService {
     }
 
     private boolean copyAssetFolder(AssetManager am, String assetPath, String path) {
-
-        Log.d("TEST", "copyAssetFolder: fromFolder=" + assetPath + " : toFolder=" + path);
-
         try {
             String[] files = am.list(assetPath);
             if (!new File(path).exists() && !new File(path).mkdirs()) {
@@ -488,7 +491,6 @@ public class OmsBackendService extends BaseThemeService {
             }
             boolean res = true;
             for (String file : files) {
-                Log.d("TEST", "file=" + file);
                 if (am.list(assetPath + "/" + file).length == 0) {
                     res &= copyAsset(am, assetPath + "/" + file, path + "/" + file);
                 } else {
@@ -505,9 +507,6 @@ public class OmsBackendService extends BaseThemeService {
     private boolean copyAsset(AssetManager assetManager,
                                     String fromAssetPath, String toPath) {
         InputStream in;
-
-        Log.d("TEST", "copyAsset: from=" + fromAssetPath + " : to=" + toPath);
-
         File parent = new File(toPath).getParentFile();
         if (!parent.exists() && !parent.mkdirs()) {
             Log.d("OmsBackendService", "Unable to create " + parent.getAbsolutePath());
