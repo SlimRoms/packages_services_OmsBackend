@@ -33,6 +33,7 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -116,6 +117,8 @@ public class OmsBackendService extends BaseThemeService {
                 try {
                     Context themeContext =
                             getBaseContext().createPackageContext(theme.packageName, 0);
+                    Drawable d = getPackageManager().getApplicationIcon(theme.packageName);
+                    Bitmap icon = drawableToBitmap(d);
                     String[] olays = themeContext.getAssets().list("overlays");
                     if (olays.length > 0) {
                         info.groups.put(OverlayGroup.OVERLAYS,
@@ -125,7 +128,9 @@ public class OmsBackendService extends BaseThemeService {
                     if (fonts.length > 0) {
                         OverlayGroup fontGroup = new OverlayGroup();
                         for (String font : fonts) {
-                            fontGroup.overlays.add(new Overlay(font, "", false));
+                            Overlay fon = new Overlay(font, font, true);
+                            fon.overlayImage = icon;
+                            fontGroup.overlays.add(fon);
                         }
                         info.groups.put(OverlayGroup.FONTS, fontGroup);
                     }
@@ -133,7 +138,9 @@ public class OmsBackendService extends BaseThemeService {
                     if (bootanis.length > 0) {
                         OverlayGroup bootanimations = new OverlayGroup();
                         for (String bootani : bootanis) {
-                            bootanimations.overlays.add(new Overlay(bootani, "", false));
+                            Overlay bootanimation = new Overlay(bootani, bootani, true);
+                            bootanimation.overlayImage = icon;
+                            bootanimations.overlays.add(bootanimation);
                         }
                         info.groups.put(OverlayGroup.BOOTANIMATIONS, bootanimations);
                     }
@@ -208,8 +215,39 @@ public class OmsBackendService extends BaseThemeService {
         }
 
         @Override
-        public boolean uninstallOverlays(OverlayThemeInfo info) throws RemoteException {
-            return false;
+        public boolean uninstallOverlays(Theme theme, OverlayThemeInfo info) throws RemoteException {
+            List<Overlay> overlays = new ArrayList<>();
+            for (Overlay overlay : info.groups.get(OverlayGroup.OVERLAYS).overlays) {
+                if (!overlay.checked) {
+                    overlays.add(overlay);
+                }
+            }
+            if (overlays == null || overlays.isEmpty()) return false;
+
+            notifyUninstallProgress(overlays.size(), 0);
+
+            Map<String, List<OverlayInfo>> overlayInfos = new HashMap<>();
+            try {
+                overlayInfos = mOverlayManager.getAllOverlays(UserHandle.USER_CURRENT);
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+
+            for (Overlay overlay : overlays) {
+                String packageName = theme.packageName + "." + overlay.targetPackage;
+                List<OverlayInfo> ois = overlayInfos.get(getTargetPackage(overlay.targetPackage));
+                if (ois != null) {
+                    for (OverlayInfo oi : ois) {
+                        if (oi.packageName.equals(packageName)) {
+                            notifyUninstallProgress(overlays.size(), overlays.indexOf(overlay));
+                            mOverlayManager.setEnabled(packageName, false, UserHandle.USER_CURRENT, false);
+                            mPMUtils.uninstallPackage(packageName);
+                        }
+                    }
+                }
+            }
+            notifyUninstallComplete();
+            return true;
         }
 
         @Override
@@ -345,7 +383,7 @@ public class OmsBackendService extends BaseThemeService {
                 if (ois != null) {
                     for (OverlayInfo oi : ois) {
                         if (oi.packageName.equals(themeContext.getPackageName() +
-                                "." + overlay.targetPackage)) {
+                                "." + overlay.targetPackage) && oi.state == OverlayInfo.STATE_APPROVED_ENABLED) {
                             overlay.checked = true;
                         }
                     }

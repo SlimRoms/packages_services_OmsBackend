@@ -15,7 +15,10 @@ import android.content.pm.PackageManager;
 import android.content.pm.PackageParser;
 import android.os.Binder;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.RemoteException;
+import android.os.ResultReceiver;
 import android.os.ServiceManager;
 import android.os.UserHandle;
 
@@ -24,6 +27,7 @@ import com.android.internal.util.SizedInputStream;
 import libcore.io.IoUtils;
 
 import java.io.File;
+import java.io.FileDescriptor;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -189,6 +193,23 @@ public class PackageManagerUtils {
     private int translateUserId(int userId, String logContext) {
         return ActivityManager.handleIncomingUser(Binder.getCallingPid(), Binder.getCallingUid(),
                 userId, true, true, logContext, "pm command");
+    }
+
+    public boolean uninstallPackage(String packageName) {
+        final HandlerThread handlerThread = new HandlerThread("results");
+        handlerThread.start();
+        try {
+            ServiceManager.getService("package").shellCommand(
+                    FileDescriptor.in, FileDescriptor.out, FileDescriptor.err,
+                    new String[] { packageName },
+                    new ResultReceiver(new Handler(handlerThread.getLooper())));
+            return true;
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        } finally {
+            handlerThread.quitSafely();
+        }
+        return false;
     }
 
     private static class LocalIntentReceiver {
