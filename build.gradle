@@ -3,7 +3,16 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:2.1.3'
+        classpath 'com.android.tools.build:gradle:2.3.0-beta4'
+    }
+}
+
+allprojects {
+    repositories {
+        jcenter()
+        flatDir {
+            dirs 'libs'
+        }
     }
 }
 
@@ -47,12 +56,7 @@ allprojects {
 }
 
 dependencies {
-    compile(name:'themecore2-debug', ext:'aar')
-    compile fileTree(dir: 'libs', include: ['*.jar'])
-    androidTestCompile('com.android.support.test.espresso:espresso-core:2.2.2', {
-        exclude group: 'com.android.support', module: 'support-annotations'
-    })
-    compile 'commons-io:commons-io:2.4'
-    compile 'com.android.support:appcompat-v7:25.1.0'
-    testCompile 'junit:junit:4.12'
+    compile 'com.slimroms.themecore:core-debug:1.0@aar'
+    compile 'commons-io:commons-io:2.5'
+    compile 'com.android.support:appcompat-v7:25.1.1'
 }
