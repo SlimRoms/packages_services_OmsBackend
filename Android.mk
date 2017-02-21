@@ -66,7 +66,7 @@ LOCAL_RESOURCE_DIR := \
     frameworks/support/v7/appcompat/res \
     frameworks/opt/theme-core/res
 
-LOCAL_ASSET_DIR := $(LOCAL_ASSETS_TEMP_PATH) $(LOCAL_PATH)/assets
+LOCAL_ASSET_DIR := $(LOCAL_ASSETS_TEMP_PATH)
 LOCAL_PROGUARD_ENABLED := disabled
 LOCAL_CERTIFICATE := platform
 LOCAL_PRIVILEGED_MODULE := true

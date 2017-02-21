@@ -324,17 +324,25 @@ public class OmsBackendService extends BaseThemeService {
         if (mSystemUIPackages.containsKey(targetPackage)) {
             targetPackage = "com.android.systemui";
         }
+        StringBuilder manifest = new StringBuilder();
+        manifest.append("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
+        manifest.append("<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\"");
+        manifest.append("package=\"" + theme.packageName + "." + overlay.targetPackage + "\">");
+        manifest.append("<overlay");
+        manifest.append("android:targetPackage=\"" + targetPackage + "\"/>");
+        manifest.append("<application>");
+        manifest.append("<meta-data android:name=\"theme_version\" android:value=\""
+                + theme.themeVersion + "\"/>");
+        manifest.append("<meta-data android:name=\"theme_package\" android:value=\""
+                + theme.packageName + "\"/>");
+        manifest.append("<meta-data android:name=\"target_package\" android:value=\""
+                + overlay.targetPackage + "\"/>");
+        manifest.append("</application>");
+        manifest.append("</manifest>");
+
         try {
-            String manifestContent = IOUtils.toString(
-                    getBaseContext().getAssets().open("AndroidManifest.xml"))
-                    .replace("<<REAL_TARGET_PACKAGE>>", targetPackage)
-                    .replace("<<PACKAGE_NAME>>", theme.packageName + "." + overlay.targetPackage)
-                    .replace("<<THEME_VERSION>>", theme.themeVersion)
-                    .replace("<<THEME_PACKAGE>>", theme.packageName)
-                    .replace("<<TARGET_PACKAGE>>", overlay.targetPackage);
-            FileUtils.writeStringToFile(new File(path, "AndroidManifest.xml"), manifestContent);
+            FileUtils.writeStringToFile(new File(path, "AndroidManifest.xml"), manifest.toString());
         } catch (IOException e) {
-            e.printStackTrace();
         }
     }
 
