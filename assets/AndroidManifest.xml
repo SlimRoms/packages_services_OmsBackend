@@ -4,6 +4,12 @@
 
     <overlay
         android:priority="1000"
-        android:targetPackage="<<TARGET_PACKAGE>>" />
+        android:targetPackage="<<REAL_TARGET_PACKAGE>>" />
+
+    <application>
+
+        <meta-data android:name="theme_version" android:value="<<THEME_VERSION>>" />
+        <meta-data android:name="theme_package" android:value="<<THEME_PACKAGE>>" />
+        <meta-data android:name="target_package" android:value="<<TARGET_PACKAGE>>" />
 
 </manifest>

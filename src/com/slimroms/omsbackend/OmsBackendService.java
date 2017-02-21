@@ -1,6 +1,7 @@
 package com.slimroms.omsbackend;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.om.IOverlayManager;
 import android.content.om.OverlayInfo;
@@ -76,6 +77,11 @@ public class OmsBackendService extends BaseThemeService {
     private final class Helper extends BaseThemeHelper {
 
         @Override
+        public String getBackendTitle() {
+            return "OmsBackend";
+        }
+
+        @Override
         public int getThemePackages(List<Theme> themes) throws RemoteException {
             PackageManager pm = getPackageManager();
             if (pm != null) {
@@ -107,6 +113,44 @@ public class OmsBackendService extends BaseThemeService {
         @Override
         public Theme getThemeByPackage(String packageName) {
             return getTheme(packageName);
+        }
+
+        @Override
+        public void getInstalledOverlays(OverlayGroup group) throws RemoteException {
+            Map<String, List<OverlayInfo>> overlayInfos = new HashMap<>();
+            try {
+                overlayInfos = mOverlayManager.getAllOverlays(UserHandle.USER_CURRENT);
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+
+            for (List<OverlayInfo> overlays : overlayInfos.values()) {
+                for (OverlayInfo overlayInfo : overlays) {
+                    Overlay overlay = null;
+                    ApplicationInfo info = null;
+                    try {
+                        info = getPackageManager().getApplicationInfo(overlayInfo.packageName, 0);
+                    } catch (PackageManager.NameNotFoundException e) {
+                        continue;
+                    }
+                    if (info.metaData == null) continue;
+                    String targetPackage = info.metaData.getString("target_package",
+                            overlayInfo.targetPackageName);
+                    if (isSystemUIOverlay(targetPackage)) {
+                        overlay = new Overlay(getSystemUIOverlayName(targetPackage),
+                                targetPackage, true);
+                    } else {
+                        overlay = new Overlay((String) info.loadLabel(getPackageManager()),
+                                targetPackage, true);
+                    }
+                    if (overlay != null) {
+                        overlay.overlayVersion = info.metaData.getFloat("theme_version", 1.0f);
+                        overlay.themePackage = info.metaData.getString("theme_package", null);
+                        overlay.isOverlayInstalled = true;
+                        group.overlays.add(overlay);
+                    }
+                }
+            }
         }
 
         @Override
@@ -198,6 +242,8 @@ public class OmsBackendService extends BaseThemeService {
                     handleExtractType1Flavor(themeContext, overlay, "type1b", overlayFolder, edit);
                     handleExtractType1Flavor(themeContext, overlay, "type1c", overlayFolder, edit);
 
+                    Log.d("TEST", "package=" + overlay.targetPackage);
+
                     generateManifest(theme, overlay, overlayFolder.getAbsolutePath());
                     compileOverlay(theme, overlay, overlayFolder.getAbsolutePath());
                     installAndEnable(getCacheDir().getAbsolutePath() + "/" + theme.packageName +
@@ -205,7 +251,8 @@ public class OmsBackendService extends BaseThemeService {
                             ".apk", theme.packageName + "." + overlay.targetPackage);
                 }
                 edit.apply();
-                mOverlayManager.refresh(UserHandle.USER_CURRENT);
+                //mOverlayManager.refresh(UserHandle.USER_CURRENT);
+                sendBroadcast(new Intent("slim.action.INSTALL_FINISHED"));
                 notifyInstallComplete();
                 return true;
             } catch (PackageManager.NameNotFoundException e) {
@@ -215,14 +262,18 @@ public class OmsBackendService extends BaseThemeService {
         }
 
         @Override
-        public boolean uninstallOverlays(Theme theme, OverlayThemeInfo info) throws RemoteException {
+        public boolean uninstallOverlays(OverlayGroup group) throws RemoteException {
             List<Overlay> overlays = new ArrayList<>();
-            for (Overlay overlay : info.groups.get(OverlayGroup.OVERLAYS).overlays) {
+            for (Overlay overlay : group.overlays) {
                 if (!overlay.checked) {
                     overlays.add(overlay);
                 }
             }
             if (overlays == null || overlays.isEmpty()) return false;
+
+            if (mPMUtils == null) {
+                mPMUtils = new PackageManagerUtils(getBaseContext());
+            }
 
             notifyUninstallProgress(overlays.size(), 0);
 
@@ -234,18 +285,20 @@ public class OmsBackendService extends BaseThemeService {
             }
 
             for (Overlay overlay : overlays) {
-                String packageName = theme.packageName + "." + overlay.targetPackage;
+                String packageName = overlay.themePackage + "." + overlay.targetPackage;
                 List<OverlayInfo> ois = overlayInfos.get(getTargetPackage(overlay.targetPackage));
                 if (ois != null) {
                     for (OverlayInfo oi : ois) {
                         if (oi.packageName.equals(packageName)) {
                             notifyUninstallProgress(overlays.size(), overlays.indexOf(overlay));
-                            mOverlayManager.setEnabled(packageName, false, UserHandle.USER_CURRENT, false);
+                            mOverlayManager.setEnabled(packageName,
+                                    false, UserHandle.USER_CURRENT, false);
                             mPMUtils.uninstallPackage(packageName);
                         }
                     }
                 }
             }
+            sendBroadcast(new Intent("slim.action.INSTALL_FINISHED"));
             notifyUninstallComplete();
             return true;
         }
@@ -274,8 +327,11 @@ public class OmsBackendService extends BaseThemeService {
         try {
             String manifestContent = IOUtils.toString(
                     getBaseContext().getAssets().open("AndroidManifest.xml"))
-                    .replace("<<TARGET_PACKAGE>>", targetPackage)
-                    .replace("<<PACKAGE_NAME>>", theme.packageName + "." + overlay.targetPackage);
+                    .replace("<<REAL_TARGET_PACKAGE>>", targetPackage)
+                    .replace("<<PACKAGE_NAME>>", theme.packageName + "." + overlay.targetPackage)
+                    .replace("<<THEME_VERSION>>", theme.themeVersion)
+                    .replace("<<THEME_PACKAGE>>", theme.packageName)
+                    .replace("<<TARGET_PACKAGE>>", overlay.targetPackage);
             FileUtils.writeStringToFile(new File(path, "AndroidManifest.xml"), manifestContent);
         } catch (IOException e) {
             e.printStackTrace();
@@ -347,7 +403,8 @@ public class OmsBackendService extends BaseThemeService {
     private void installAndEnable(String apk, String packageName) {
         try {
             if (mPMUtils.installPackage(apk)) {
-                mOverlayManager.setEnabled(packageName, true, UserHandle.USER_CURRENT, true);
+                boolean b = mOverlayManager.setEnabled(packageName, true, UserHandle.USER_CURRENT, false);
+                Log.d("TEST", "successful=" + b);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -369,7 +426,7 @@ public class OmsBackendService extends BaseThemeService {
         for (String p : packages) {
             Overlay overlay = null;
             if (isSystemUIOverlay(p)) {
-                overlay = new Overlay(getSystemUIOvelayName(p), p, true);
+                overlay = new Overlay(getSystemUIOverlayName(p), p, true);
             } else {
                 try {
                     ApplicationInfo info = getPackageManager().getApplicationInfo(p, 0);
@@ -502,7 +559,7 @@ public class OmsBackendService extends BaseThemeService {
         }
     }
 
-    private String getSystemUIOvelayName(String pName) {
+    private String getSystemUIOverlayName(String pName) {
         return mSystemUIPackages.get(pName);
     }
 
