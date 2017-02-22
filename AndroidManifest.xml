@@ -18,7 +18,7 @@
 
         <service android:name=".OmsBackendService" android:exported="true">
             <intent-filter>
-                <action android:name="org.slim.theming.BACKEND" />
+                <action android:name="com.slimroms.THEME_BACKEND" />
             </intent-filter>
         </service>
 
