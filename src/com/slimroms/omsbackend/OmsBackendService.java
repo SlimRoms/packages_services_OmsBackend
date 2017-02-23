@@ -46,6 +46,7 @@ import kellinwood.security.zipsigner.ZipSigner;
 import static org.apache.commons.io.FileUtils.copyInputStreamToFile;
 
 public class OmsBackendService extends BaseThemeService {
+    private static final String BOOTANIMATION_CACHED_SUFFIX = "_bootanimation.zip";
     private HashMap<String, String> mSystemUIPackages = new HashMap<>();
 
     private PackageManagerUtils mPMUtils;
@@ -182,7 +183,24 @@ public class OmsBackendService extends BaseThemeService {
                     if (bootanis.length > 0) {
                         OverlayGroup bootanimations = new OverlayGroup();
                         for (String bootani : bootanis) {
-                            Overlay bootanimation = new Overlay(bootani, bootani, true);
+                            // cache bootanimation for further preview
+                            File bootanimFile = new File(getBaseContext().getCacheDir(),
+                                    theme.packageName + bootani + BOOTANIMATION_CACHED_SUFFIX);
+                            if (bootanimFile.exists()) {
+                                bootanimFile.delete();
+                            }
+                            InputStream is = themeContext.getAssets().open("bootanimation/" + bootani);
+                            try {
+                                FileUtils.copyInputStreamToFile(is, bootanimFile);
+                            }
+                            catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                            finally {
+                                is.close();
+                            }
+
+                            Overlay bootanimation = new Overlay(bootani, bootanimFile.getAbsolutePath(), true);
                             bootanimation.overlayImage = icon;
                             bootanimations.overlays.add(bootanimation);
                         }
