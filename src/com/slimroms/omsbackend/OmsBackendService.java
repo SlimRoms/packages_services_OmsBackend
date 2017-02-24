@@ -34,6 +34,7 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -364,7 +365,8 @@ public class OmsBackendService extends BaseThemeService {
         manifest.append("</application>\n");
         manifest.append("</manifest>");
         try {
-            FileUtils.writeStringToFile(new File(path, "AndroidManifest.xml"), manifest.toString());
+            FileUtils.writeStringToFile(new File(path, "AndroidManifest.xml"), manifest.toString(),
+                    Charset.defaultCharset());
         } catch (IOException e) {
         }
     }
@@ -394,7 +396,7 @@ public class OmsBackendService extends BaseThemeService {
             });
             nativeApp.waitFor();
             int exitCode = nativeApp.exitValue();
-            String error = IOUtils.toString(nativeApp.getErrorStream());
+            String error = IOUtils.toString(nativeApp.getErrorStream(), Charset.defaultCharset());
             if (exitCode != 0 || !TextUtils.isEmpty(error)) {
                 Log.e(TAG, "aapt: exitCode:" + exitCode + " error: " + error);
                 return false;
@@ -442,8 +444,8 @@ public class OmsBackendService extends BaseThemeService {
             os.flush();
 
             int exitCode = process.waitFor();
-            String output = IOUtils.toString(process.getInputStream());
-            String error = IOUtils.toString(process.getErrorStream());
+            String output = IOUtils.toString(process.getInputStream(), Charset.defaultCharset());
+            String error = IOUtils.toString(process.getErrorStream(), Charset.defaultCharset());
             if (exitCode != 0 || (!"".equals(error) && null != error)) {
                 Log.e(TAG,  "cmd: " + cmd + " exitCode:" + exitCode + " error: " + error);
             }
@@ -569,7 +571,7 @@ public class OmsBackendService extends BaseThemeService {
                     if (!flavor.contains("_")) {
                         try {
                             String flavorName = IOUtils.toString(themeContext.getAssets().open(
-                                    "overlays/" + overlay.targetPackage + "/" + flavor));
+                                    "overlays/" + overlay.targetPackage + "/" + flavor), Charset.defaultCharset());
                             flavorMap.put(flavor, new OverlayFlavor(flavorName, flavor));
                         } catch (IOException e) {
                             // ignore
@@ -595,7 +597,7 @@ public class OmsBackendService extends BaseThemeService {
         try {
             types = themeContext.getAssets().list("overlays/android");
             String def = IOUtils.toString(themeContext.getAssets().open("overlays/android/"
-                    + "type3"));
+                    + "type3"), Charset.defaultCharset());
             group.styles.put("type3", def);
         } catch (IOException e) {
             // ignore
