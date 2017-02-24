@@ -200,7 +200,8 @@ public class OmsBackendService extends BaseThemeService {
                                 is.close();
                             }
 
-                            Overlay bootanimation = new Overlay(bootani, bootanimFile.getAbsolutePath(), true);
+                            Overlay bootanimation = new Overlay(bootani, bootani, true);
+                            bootanimation.tag = bootanimFile.getAbsolutePath();
                             bootanimation.overlayImage = icon;
                             bootanimations.overlays.add(bootanimation);
                         }
