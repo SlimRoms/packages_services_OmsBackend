@@ -46,7 +46,11 @@ import kellinwood.security.zipsigner.ZipSigner;
 import static org.apache.commons.io.FileUtils.copyInputStreamToFile;
 
 public class OmsBackendService extends BaseThemeService {
+
+    private static final String TAG = "OmsBackendService";
+
     private static final String BOOTANIMATION_CACHED_SUFFIX = "_bootanimation.zip";
+
     private HashMap<String, String> mSystemUIPackages = new HashMap<>();
 
     private PackageManagerUtils mPMUtils;
@@ -130,11 +134,14 @@ public class OmsBackendService extends BaseThemeService {
                     Overlay overlay = null;
                     ApplicationInfo info = null;
                     try {
-                        info = getPackageManager().getApplicationInfo(overlayInfo.packageName, 0);
+                        info = getPackageManager().getApplicationInfo(overlayInfo.packageName, PackageManager.GET_META_DATA);
                     } catch (PackageManager.NameNotFoundException e) {
                         continue;
                     }
-                    if (info.metaData == null) continue;
+                    if (info.metaData == null) {
+                        Log.e(TAG, "overlay is missing metaData");
+                        continue;
+                    }
                     String targetPackage = info.metaData.getString("target_package",
                             overlayInfo.targetPackageName);
                     if (isSystemUIOverlay(targetPackage)) {
@@ -148,6 +155,13 @@ public class OmsBackendService extends BaseThemeService {
                         overlay.overlayVersion = info.metaData.getFloat("theme_version", 1.0f);
                         overlay.themePackage = info.metaData.getString("theme_package", null);
                         overlay.isOverlayInstalled = true;
+                        try {
+                            Drawable d = getPackageManager().getApplicationIcon(
+                                    getTargetPackage(overlay.targetPackage));
+                            overlay.overlayImage = drawableToBitmap(d);
+                        } catch (PackageManager.NameNotFoundException e) {
+                            e.printStackTrace();
+                        }
                         group.overlays.add(overlay);
                     }
                 }
@@ -261,10 +275,10 @@ public class OmsBackendService extends BaseThemeService {
                     handleExtractType1Flavor(themeContext, overlay, "type1b", overlayFolder, edit);
                     handleExtractType1Flavor(themeContext, overlay, "type1c", overlayFolder, edit);
 
-                    Log.d("TEST", "package=" + overlay.targetPackage);
-
                     generateManifest(theme, overlay, overlayFolder.getAbsolutePath());
-                    compileOverlay(theme, overlay, overlayFolder.getAbsolutePath());
+                    if (!compileOverlay(theme, overlay, overlayFolder.getAbsolutePath())) {
+                        continue;
+                    }
                     installAndEnable(getCacheDir().getAbsolutePath() + "/" + theme.packageName +
                             "/overlays/" + theme.packageName + "." + overlay.targetPackage +
                             ".apk", theme.packageName + "." + overlay.targetPackage);
@@ -344,31 +358,40 @@ public class OmsBackendService extends BaseThemeService {
             targetPackage = "com.android.systemui";
         }
         StringBuilder manifest = new StringBuilder();
-        manifest.append("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
-        manifest.append("<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\"");
-        manifest.append("package=\"" + theme.packageName + "." + overlay.targetPackage + "\">");
-        manifest.append("<overlay");
-        manifest.append("android:targetPackage=\"" + targetPackage + "\"/>");
-        manifest.append("<application>");
+        manifest.append("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
+        manifest.append("<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\"\n");
+        manifest.append("package=\"" + theme.packageName + "." + overlay.targetPackage + "\">\n");
+        manifest.append("<overlay\n");
+        manifest.append("android:targetPackage=\"" + targetPackage + "\"/>\n");
+        manifest.append("<application>\n");
         manifest.append("<meta-data android:name=\"theme_version\" android:value=\""
-                + theme.themeVersion + "\"/>");
+                + theme.themeVersion + "\"/>\n");
         manifest.append("<meta-data android:name=\"theme_package\" android:value=\""
-                + theme.packageName + "\"/>");
+                + theme.packageName + "\"/>\n");
         manifest.append("<meta-data android:name=\"target_package\" android:value=\""
-                + overlay.targetPackage + "\"/>");
-        manifest.append("</application>");
+                + overlay.targetPackage + "\"/>\n");
+        manifest.append("</application>\n");
         manifest.append("</manifest>");
-
         try {
             FileUtils.writeStringToFile(new File(path, "AndroidManifest.xml"), manifest.toString());
         } catch (IOException e) {
         }
     }
 
-    private void compileOverlay(Theme theme, Overlay overlay, String overlayPath) {
+    private boolean compileOverlay(Theme theme, Overlay overlay, String overlayPath) {
         File overlayFolder = new File(getCacheDir() + "/" + theme.packageName + "/overlays");
         if (!overlayFolder.exists()) {
             overlayFolder.mkdirs();
+        }
+        File unsignedOverlay = new File(overlayFolder,
+                theme.packageName + "." + overlay.targetPackage + "_unsigned.apk");
+        File signedOverlay = new File(overlayFolder,
+                theme.packageName + "." + overlay.targetPackage + ".apk");
+        if (unsignedOverlay.exists()) {
+            unsignedOverlay.delete();
+        }
+        if (signedOverlay.exists()) {
+            signedOverlay.delete();
         }
         try {
             Process nativeApp = Runtime.getRuntime().exec(new String[]{
@@ -376,20 +399,31 @@ public class OmsBackendService extends BaseThemeService {
                     "-M", overlayPath + "/AndroidManifest.xml",
                     "-S", overlayPath + "/res",
                     "-I", "/system/framework/framework-res.apk",
-                    "-F", overlayFolder.getAbsolutePath() + "/" + theme.packageName +
-                    "." + overlay.targetPackage + "_unsigned.apk"
+                    "-F", unsignedOverlay.getAbsolutePath()
             });
             nativeApp.waitFor();
+            int exitCode = nativeApp.exitValue();
+            String error = IOUtils.toString(nativeApp.getErrorStream());
+            if (exitCode != 0 || !TextUtils.isEmpty(error)) {
+                Log.e(TAG, "aapt: exitCode:" + exitCode + " error: " + error);
+                return false;
+            }
             // sign
-            ZipSigner zipSigner = new ZipSigner();
-            zipSigner.setKeymode("testkey");
-            zipSigner.signZip(overlayFolder.getAbsolutePath() + "/" +
-                theme.packageName + "." + overlay.targetPackage + "_unsigned.apk",
-                overlayFolder.getAbsolutePath() + "/" + theme.packageName +
-                "." + overlay.targetPackage + ".apk");
+            if (unsignedOverlay.exists()) {
+                ZipSigner zipSigner = new ZipSigner();
+                zipSigner.setKeymode("testkey");
+                zipSigner.signZip(unsignedOverlay.getAbsolutePath(),
+                    signedOverlay.getAbsolutePath());
+            } else {
+                Log.e(TAG, "Failed to create overlay - unable to compile "
+                        + unsignedOverlay.getAbsolutePath());
+                return false;
+            }
         } catch (Exception e) {
             e.printStackTrace();
+            return false;
         }
+        return true;
     }
 
     private String getAapt() {
@@ -420,7 +454,7 @@ public class OmsBackendService extends BaseThemeService {
             String output = IOUtils.toString(process.getInputStream());
             String error = IOUtils.toString(process.getErrorStream());
             if (exitCode != 0 || (!"".equals(error) && null != error)) {
-                Log.e("Error, cmd: " + cmd, error);
+                Log.e(TAG,  "cmd: " + cmd + " exitCode:" + exitCode + " error: " + error);
             }
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
@@ -430,8 +464,10 @@ public class OmsBackendService extends BaseThemeService {
     private void installAndEnable(String apk, String packageName) {
         try {
             if (mPMUtils.installPackage(apk)) {
-                boolean b = mOverlayManager.setEnabled(packageName, true, UserHandle.USER_CURRENT, false);
-                Log.d("TEST", "successful=" + b);
+                if (!mOverlayManager.setEnabled(packageName,
+                        true, UserHandle.USER_CURRENT, false)) {
+                    Log.e(TAG, "Failed to enable overlay - " + packageName);
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -598,7 +634,7 @@ public class OmsBackendService extends BaseThemeService {
         File cache = new File(getCacheDir(), packageName);
         if (!cache.exists()) {
             if (!cache.mkdirs()) {
-                Log.e("OmsBackendService", "unable to create directory : "
+                Log.e(TAG, "unable to create directory : "
                         + cache.getAbsolutePath());
             }
         }
@@ -631,7 +667,7 @@ public class OmsBackendService extends BaseThemeService {
         InputStream in;
         File parent = new File(toPath).getParentFile();
         if (!parent.exists() && !parent.mkdirs()) {
-            Log.d("OmsBackendService", "Unable to create " + parent.getAbsolutePath());
+            Log.d(TAG, "Unable to create " + parent.getAbsolutePath());
         }
 
         try {

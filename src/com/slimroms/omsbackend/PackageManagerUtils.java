@@ -21,6 +21,7 @@ import android.os.RemoteException;
 import android.os.ResultReceiver;
 import android.os.ServiceManager;
 import android.os.UserHandle;
+import android.util.Log;
 
 import com.android.internal.util.SizedInputStream;
 
@@ -36,6 +37,8 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 
 public class PackageManagerUtils {
+
+    private static final String TAG = "PackageManagerUtils";
 
     private Context mContext;
     private IPackageManager mPm;
@@ -69,7 +72,7 @@ public class PackageManagerUtils {
 
         try {
             if (inPath == null && params.sessionParams.sizeBytes == 0) {
-                System.err.println("Error: must either specify a package size or an APK file");
+                Log.e(TAG, "Error: must either specify a package size or an APK file");
                 return false;
             }
             if (doWriteSession(sessionId, inPath, params.sessionParams.sizeBytes, "base.apk",
@@ -80,7 +83,6 @@ public class PackageManagerUtils {
                     != PackageInstaller.STATUS_SUCCESS) {
                 return false;
             }
-            System.out.println("Success");
             return true;
         } finally {
             try {
@@ -149,13 +151,9 @@ public class PackageManagerUtils {
                 }
             }
             session.fsync(out);
-
-            if (logSuccess) {
-                System.out.println("Success: streamed " + total + " bytes");
-            }
             return PackageInstaller.STATUS_SUCCESS;
         } catch (IOException e) {
-            System.err.println("Error: failed to write; " + e.getMessage());
+            Log.e(TAG, "Error: failed to write; " + e.getMessage());
             return PackageInstaller.STATUS_FAILURE;
         } finally {
             IoUtils.closeQuietly(out);
@@ -176,12 +174,8 @@ public class PackageManagerUtils {
             final Intent result = receiver.getResult();
             final int status = result.getIntExtra(PackageInstaller.EXTRA_STATUS,
                     PackageInstaller.STATUS_FAILURE);
-            if (status == PackageInstaller.STATUS_SUCCESS) {
-                if (logSuccess) {
-                    System.out.println("Success");
-                }
-            } else {
-                System.err.println("Failure ["
+            if (status != PackageInstaller.STATUS_SUCCESS) {
+                Log.e(TAG, "Failure ["
                         + result.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) + "]");
             }
             return status;
