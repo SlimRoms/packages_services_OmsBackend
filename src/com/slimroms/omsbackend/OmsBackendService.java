@@ -203,16 +203,7 @@ public class OmsBackendService extends BaseThemeService {
                             if (bootanimFile.exists()) {
                                 bootanimFile.delete();
                             }
-                            InputStream is = themeContext.getAssets().open("bootanimation/" + bootani);
-                            try {
-                                FileUtils.copyInputStreamToFile(is, bootanimFile);
-                            }
-                            catch (IOException e) {
-                                e.printStackTrace();
-                            }
-                            finally {
-                                is.close();
-                            }
+                            copyAsset(themeContext.getAssets(), "bootanimation/" + bootani, bootanimFile.getAbsolutePath());
 
                             Overlay bootanimation = new Overlay(bootani, bootani, true);
                             bootanimation.tag = bootanimFile.getAbsolutePath();
