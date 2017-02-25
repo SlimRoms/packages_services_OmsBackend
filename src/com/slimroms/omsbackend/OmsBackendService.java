@@ -167,6 +167,7 @@ public class OmsBackendService extends BaseThemeService {
                     }
                 }
             }
+            group.sort();
         }
 
         @Override
@@ -509,6 +510,7 @@ public class OmsBackendService extends BaseThemeService {
             }
         }
         getThemeStyles(themeContext, group);
+        group.sort();
         return group;
     }
 
