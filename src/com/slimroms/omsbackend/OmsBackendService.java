@@ -99,7 +99,7 @@ public class OmsBackendService extends BaseThemeService {
                         try {
                             PackageInfo pInfo = pm.getPackageInfo(info.packageName, 0);
                             Theme theme = createTheme(name, info.packageName,
-                                    Integer.toString(pInfo.versionCode), author, null);
+                                    pInfo.versionName, author, null);
                             themes.add(theme);
                         } catch (PackageManager.NameNotFoundException e) {
                             e.printStackTrace();
@@ -139,16 +139,29 @@ public class OmsBackendService extends BaseThemeService {
                     }
                     String targetPackage = info.metaData.getString("target_package",
                             overlayInfo.targetPackageName);
+                    boolean targetPackageInstalled;
+                    try {
+                        getPackageManager().getApplicationInfo(targetPackage, 0);
+                        targetPackageInstalled = true;
+                    }
+                    catch (PackageManager.NameNotFoundException ex) {
+                        targetPackageInstalled = false;
+                    }
                     if (isSystemUIOverlay(targetPackage)) {
                         overlay = new Overlay(getSystemUIOverlayName(targetPackage),
-                                targetPackage, true);
+                                targetPackage, targetPackageInstalled);
                     } else {
                         overlay = new Overlay((String) info.loadLabel(getPackageManager()),
-                                targetPackage, true);
+                                targetPackage, targetPackageInstalled);
                     }
                     if (overlay != null) {
-                        overlay.overlayVersion = info.metaData.getFloat("theme_version", 1.0f);
+                        overlay.isOverlayEnabled = (overlayInfo.state == OverlayInfo.STATE_APPROVED_ENABLED);
+                        overlay.overlayVersion = info.metaData.getFloat("theme_version", 0f);
                         overlay.themePackage = info.metaData.getString("theme_package", null);
+                        if (overlay.themePackage == null) {
+                            // fallback substratum compatibility
+                            overlay.themePackage = info.metaData.getString("Substratum_Parent", null);
+                        }
                         overlay.isOverlayInstalled = true;
                         group.overlays.add(overlay);
                     }
@@ -479,8 +492,9 @@ public class OmsBackendService extends BaseThemeService {
                 if (ois != null) {
                     for (OverlayInfo oi : ois) {
                         if (oi.packageName.equals(themeContext.getPackageName() +
-                                "." + overlay.targetPackage) && oi.state == OverlayInfo.STATE_APPROVED_ENABLED) {
+                                "." + overlay.targetPackage)) {
                             overlay.checked = true;
+                            overlay.isOverlayEnabled = (oi.state == OverlayInfo.STATE_APPROVED_ENABLED);
                         }
                     }
                 }
