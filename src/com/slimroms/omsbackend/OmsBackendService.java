@@ -107,6 +107,7 @@ public class OmsBackendService extends BaseThemeService {
                     }
                 }
             }
+            Collections.sort(themes);
             return themes.size();
         }
 
