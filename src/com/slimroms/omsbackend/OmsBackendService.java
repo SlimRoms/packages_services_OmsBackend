@@ -188,7 +188,7 @@ public class OmsBackendService extends BaseThemeService {
                         for (String bootani : bootanis) {
                             // cache bootanimation for further preview
                             File bootanimFile = new File(getBaseContext().getCacheDir(),
-                                    theme.packageName + bootani + BOOTANIMATION_CACHED_SUFFIX);
+                                    theme.packageName + "/" + bootani + BOOTANIMATION_CACHED_SUFFIX);
                             if (bootanimFile.exists()) {
                                 bootanimFile.delete();
                             }
