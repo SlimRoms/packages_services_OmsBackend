@@ -9,36 +9,23 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
+import android.net.ConnectivityManager;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.os.UserHandle;
 import android.text.TextUtils;
 import android.util.Log;
-
-import com.slimroms.themecore.BaseThemeHelper;
-import com.slimroms.themecore.BaseThemeService;
-import com.slimroms.themecore.Overlay;
-import com.slimroms.themecore.OverlayFlavor;
-import com.slimroms.themecore.OverlayGroup;
-import com.slimroms.themecore.OverlayThemeInfo;
-import com.slimroms.themecore.Theme;
-
+import com.slimroms.themecore.*;
+import kellinwood.security.zipsigner.ZipSigner;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.xmlpull.v1.XmlPullParser;
+import org.xmlpull.v1.XmlPullParserFactory;
 
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
+import java.net.URL;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-
-import kellinwood.security.zipsigner.ZipSigner;
+import java.util.*;
 
 import static org.apache.commons.io.FileUtils.copyInputStreamToFile;
 
@@ -52,6 +39,7 @@ public class OmsBackendService extends BaseThemeService {
 
     private PackageManagerUtils mPMUtils;
     private IOverlayManager mOverlayManager;
+    private ConnectivityManager mConnectManager;
 
     private Map<String, List<OverlayInfo>> mOverlays = new HashMap<>();
 
@@ -64,6 +52,7 @@ public class OmsBackendService extends BaseThemeService {
         mSystemUIPackages.put("com.android.systemui.tiles", "System UI QS Tile Icons");
 
         mOverlayManager = IOverlayManager.Stub.asInterface(ServiceManager.getService("overlay"));
+        mConnectManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
     }
 
     @Override
@@ -210,6 +199,48 @@ public class OmsBackendService extends BaseThemeService {
                             bootanimations.overlays.add(bootanimation);
                         }
                         info.groups.put(OverlayGroup.BOOTANIMATIONS, bootanimations);
+                    }
+
+                    ApplicationInfo aInfo = getPackageManager().getApplicationInfo(theme.packageName,
+                            PackageManager.GET_META_DATA);
+                    String wallpapersXmlUri = aInfo.metaData.getString("Substratum_Wallpapers");
+                    if (wallpapersXmlUri != null) {
+                        if (mConnectManager.getActiveNetworkInfo() != null &&
+                                mConnectManager.getActiveNetworkInfo().isConnected()) {
+                            try {
+                                OverlayGroup wallpapers = new OverlayGroup();
+                                URL url = new URL(wallpapersXmlUri);
+                                InputStream is = url.openStream();
+                                XmlPullParserFactory factory = XmlPullParserFactory.newInstance();
+                                XmlPullParser parser = factory.newPullParser();
+                                parser.setInput(new InputStreamReader(is));
+                                Overlay wallpaper = null;
+                                while (parser.getEventType() != XmlPullParser.END_DOCUMENT) {
+                                    if (parser.getEventType() == XmlPullParser.START_TAG) {
+                                        if (parser.getName().equals("wallpaper")) {
+                                            String id = parser.getAttributeValue(null, "id");
+                                            wallpaper = new Overlay(id, id, true);
+                                        } else if (parser.getName().equals("link")) {
+                                            assert wallpaper != null;
+                                            wallpaper.tag = parser.nextText();
+                                        }
+                                    } else if (parser.getEventType() == XmlPullParser.END_TAG) {
+                                        if (parser.getName().equals("wallpaper")) {
+                                            assert wallpaper != null;
+                                            wallpapers.overlays.add(wallpaper);
+                                        }
+                                    }
+                                    parser.next();
+                                }
+
+                                is.close();
+                                info.groups.put(OverlayGroup.WALLPAPERS, wallpapers);
+                            }
+                            catch (Exception ex) {
+                                // something went wrong, no wallpapers for you
+                                ex.printStackTrace();
+                            }
+                        }
                     }
                 } catch (PackageManager.NameNotFoundException|IOException e) {
                     e.printStackTrace();
