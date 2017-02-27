@@ -348,6 +348,7 @@ public class OmsBackendService extends BaseThemeService {
                             mOverlayManager.setEnabled(packageName,
                                     false, UserHandle.USER_CURRENT, false);
                             mPMUtils.uninstallPackage(packageName);
+                            break;
                         }
                     }
                 }
@@ -540,6 +541,7 @@ public class OmsBackendService extends BaseThemeService {
                                 "." + overlay.targetPackage)) {
                             overlay.checked = true;
                             overlay.isOverlayEnabled = (oi.state == OverlayInfo.STATE_APPROVED_ENABLED);
+                            break;
                         }
                     }
                 }
