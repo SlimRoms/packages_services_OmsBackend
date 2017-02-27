@@ -1,5 +1,7 @@
 package com.slimroms.omsbackend;
 
+import android.app.ActivityManagerNative;
+import android.app.IActivityManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -116,6 +118,8 @@ public class OmsBackendService extends BaseThemeService {
 
             for (List<OverlayInfo> overlays : overlayInfos.values()) {
                 for (OverlayInfo overlayInfo : overlays) {
+                    if (overlayInfo.state != OverlayInfo.STATE_APPROVED_ENABLED)
+                        continue;
                     Overlay overlay = null;
                     ApplicationInfo info = null;
                     try {
@@ -305,7 +309,7 @@ public class OmsBackendService extends BaseThemeService {
                             ".apk", theme.packageName + "." + overlay.targetPackage);
                 }
                 edit.apply();
-                //mOverlayManager.refresh(UserHandle.USER_CURRENT);
+                mOverlayManager.refresh(UserHandle.USER_CURRENT);
                 sendBroadcast(new Intent("slim.action.INSTALL_FINISHED"));
                 notifyInstallComplete();
                 return true;
@@ -317,9 +321,10 @@ public class OmsBackendService extends BaseThemeService {
 
         @Override
         public boolean uninstallOverlays(OverlayGroup group) throws RemoteException {
+            Log.d("TEST", "uninstallOverlays");
             List<Overlay> overlays = new ArrayList<>();
             for (Overlay overlay : group.overlays) {
-                if (!overlay.checked) {
+                if (overlay.checked) {
                     overlays.add(overlay);
                 }
             }
@@ -364,7 +369,6 @@ public class OmsBackendService extends BaseThemeService {
 
         @Override
         public void reboot() throws RemoteException {
-
         }
 
         @Override
@@ -486,9 +490,22 @@ public class OmsBackendService extends BaseThemeService {
     private void installAndEnable(String apk, String packageName) {
         try {
             if (mPMUtils.installPackage(apk)) {
-                if (!mOverlayManager.setEnabled(packageName,
-                        true, UserHandle.USER_CURRENT, false)) {
-                    Log.e(TAG, "Failed to enable overlay - " + packageName);
+                OverlayInfo info = null;
+                while (info == null) {
+                    try {
+                        info = mOverlayManager.getOverlayInfo(packageName, UserHandle.USER_CURRENT);
+                        Thread.sleep(500);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+                try {
+                    if (!mOverlayManager.setEnabled(packageName,
+                            true, UserHandle.USER_CURRENT, true)) {
+                        Log.e(TAG, "Failed to enable overlay - " + packageName);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
             }
         } catch (Exception e) {
@@ -619,7 +636,7 @@ public class OmsBackendService extends BaseThemeService {
         return mSystemUIPackages.get(pName);
     }
 
-    private boolean isSystemUIOverlay(String pName) {
+    boolean isSystemUIOverlay(String pName) {
        return mSystemUIPackages.containsKey(pName);
     }
 
