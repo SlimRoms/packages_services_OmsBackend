@@ -11,7 +11,6 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
-import android.net.ConnectivityManager;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.os.UserHandle;
@@ -41,7 +40,6 @@ public class OmsBackendService extends BaseThemeService {
 
     private PackageManagerUtils mPMUtils;
     private IOverlayManager mOverlayManager;
-    private ConnectivityManager mConnectManager;
 
     private Map<String, List<OverlayInfo>> mOverlays = new HashMap<>();
 
@@ -54,7 +52,6 @@ public class OmsBackendService extends BaseThemeService {
         mSystemUIPackages.put("com.android.systemui.tiles", "System UI QS Tile Icons");
 
         mOverlayManager = IOverlayManager.Stub.asInterface(ServiceManager.getService("overlay"));
-        mConnectManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
     }
 
     @Override
@@ -209,42 +206,39 @@ public class OmsBackendService extends BaseThemeService {
                     ApplicationInfo aInfo = getPackageManager().getApplicationInfo(theme.packageName,
                             PackageManager.GET_META_DATA);
                     String wallpapersXmlUri = aInfo.metaData.getString("Substratum_Wallpapers");
-                    if (wallpapersXmlUri != null) {
-                        if (mConnectManager.getActiveNetworkInfo() != null &&
-                                mConnectManager.getActiveNetworkInfo().isConnected()) {
-                            try {
-                                OverlayGroup wallpapers = new OverlayGroup();
-                                URL url = new URL(wallpapersXmlUri);
-                                InputStream is = url.openStream();
-                                XmlPullParserFactory factory = XmlPullParserFactory.newInstance();
-                                XmlPullParser parser = factory.newPullParser();
-                                parser.setInput(new InputStreamReader(is));
-                                Overlay wallpaper = null;
-                                while (parser.getEventType() != XmlPullParser.END_DOCUMENT) {
-                                    if (parser.getEventType() == XmlPullParser.START_TAG) {
-                                        if (parser.getName().equals("wallpaper")) {
-                                            String id = parser.getAttributeValue(null, "id");
-                                            wallpaper = new Overlay(id, id, true);
-                                        } else if (parser.getName().equals("link")) {
-                                            assert wallpaper != null;
-                                            wallpaper.tag = parser.nextText();
-                                        }
-                                    } else if (parser.getEventType() == XmlPullParser.END_TAG) {
-                                        if (parser.getName().equals("wallpaper")) {
-                                            assert wallpaper != null;
-                                            wallpapers.overlays.add(wallpaper);
-                                        }
+                    if (wallpapersXmlUri != null && isOnline()) {
+                        try {
+                            OverlayGroup wallpapers = new OverlayGroup();
+                            URL url = new URL(wallpapersXmlUri);
+                            InputStream is = url.openStream();
+                            XmlPullParserFactory factory = XmlPullParserFactory.newInstance();
+                            XmlPullParser parser = factory.newPullParser();
+                            parser.setInput(new InputStreamReader(is));
+                            Overlay wallpaper = null;
+                            while (parser.getEventType() != XmlPullParser.END_DOCUMENT) {
+                                if (parser.getEventType() == XmlPullParser.START_TAG) {
+                                    if (parser.getName().equals("wallpaper")) {
+                                        String id = parser.getAttributeValue(null, "id");
+                                        wallpaper = new Overlay(id, id, true);
+                                    } else if (parser.getName().equals("link")) {
+                                        assert wallpaper != null;
+                                        wallpaper.tag = parser.nextText();
                                     }
-                                    parser.next();
+                                } else if (parser.getEventType() == XmlPullParser.END_TAG) {
+                                    if (parser.getName().equals("wallpaper")) {
+                                        assert wallpaper != null;
+                                        wallpapers.overlays.add(wallpaper);
+                                    }
                                 }
+                                parser.next();
+                            }
 
-                                is.close();
-                                info.groups.put(OverlayGroup.WALLPAPERS, wallpapers);
-                            }
-                            catch (Exception ex) {
-                                // something went wrong, no wallpapers for you
-                                ex.printStackTrace();
-                            }
+                            is.close();
+                            info.groups.put(OverlayGroup.WALLPAPERS, wallpapers);
+                        }
+                        catch (Exception ex) {
+                            // something went wrong, no wallpapers for you
+                            ex.printStackTrace();
                         }
                     }
                 } catch (PackageManager.NameNotFoundException|IOException e) {
@@ -674,5 +668,19 @@ public class OmsBackendService extends BaseThemeService {
                 edit.putString(overlay.targetPackage + "_" + typeName, type.selected);
             } catch (IOException e) {}
         }
+    }
+
+    private boolean isOnline() {
+        final Runtime runtime = Runtime.getRuntime();
+        try {
+            final Process ipProcess = runtime.exec("/system/bin/ping -c 1 8.8.8.8");
+            final int exitValue = ipProcess.waitFor();
+            return (exitValue == 0);
+        }
+        catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        return false;
     }
 }
