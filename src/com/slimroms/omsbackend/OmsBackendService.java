@@ -115,8 +115,7 @@ public class OmsBackendService extends BaseThemeService {
 
             for (List<OverlayInfo> overlays : overlayInfos.values()) {
                 for (OverlayInfo overlayInfo : overlays) {
-                    if (overlayInfo.state != OverlayInfo.STATE_APPROVED_ENABLED &&
-                            overlayInfo.state != OverlayInfo.STATE_APPROVED_DISABLED)
+                    if (overlayInfo.state != OverlayInfo.STATE_APPROVED_ENABLED)
                         continue;
                     Overlay overlay = null;
                     ApplicationInfo info = null;
