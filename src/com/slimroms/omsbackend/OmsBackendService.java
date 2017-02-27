@@ -196,7 +196,8 @@ public class OmsBackendService extends BaseThemeService {
                             if (bootanimFile.exists()) {
                                 bootanimFile.delete();
                             }
-                            copyAsset(themeContext.getAssets(), "bootanimation/" + bootani, bootanimFile.getAbsolutePath());
+                            AssetUtils.copyAsset(themeContext.getAssets(), "bootanimation/"
+                                    + bootani, bootanimFile.getAbsolutePath());
 
                             Overlay bootanimation = new Overlay(bootani, bootani, true);
                             bootanimation.tag = bootanimFile.getAbsolutePath();
@@ -277,11 +278,11 @@ public class OmsBackendService extends BaseThemeService {
                     notifyInstallProgress(overlays.overlays.size(),
                             overlays.overlays.indexOf(overlay));
                     File overlayFolder = new File(themeCache, overlay.targetPackage);
-                    copyAssetFolder(themeContext.getAssets(), "overlays/"
+                    AssetUtils.copyAssetFolder(themeContext.getAssets(), "overlays/"
                             + overlay.targetPackage + "/res",
                             overlayFolder.getAbsolutePath() + "/res");
                     if (!TextUtils.isEmpty(overlays.selectedStyle)) {
-                        copyAssetFolder(themeContext.getAssets(), "overlays/"
+                        AssetUtils.copyAssetFolder(themeContext.getAssets(), "overlays/"
                                 + overlay.targetPackage + "/" + overlays.selectedStyle,
                                 overlayFolder.getAbsolutePath() + "/res");
                     }
@@ -289,7 +290,7 @@ public class OmsBackendService extends BaseThemeService {
                     // handle type 2 overlay if non-default selected
                     OverlayFlavor type2 = overlay.flavors.get("type2");
                     if (type2 != null) {
-                        copyAssetFolder(themeContext.getAssets(), "overlays/"
+                        AssetUtils.copyAssetFolder(themeContext.getAssets(), "overlays/"
                                 + overlay.targetPackage + "/" + type2.selected,
                                 overlayFolder.getAbsolutePath() + "/res");
                         edit.putString(overlay.targetPackage + "_type2", type2.selected);
@@ -651,46 +652,6 @@ public class OmsBackendService extends BaseThemeService {
         return cache;
     }
 
-    private boolean copyAssetFolder(AssetManager am, String assetPath, String path) {
-        try {
-            String[] files = am.list(assetPath);
-            if (!new File(path).exists() && !new File(path).mkdirs()) {
-                throw new RuntimeException("cannot create directory: " + path);
-            }
-            boolean res = true;
-            for (String file : files) {
-                if (am.list(assetPath + "/" + file).length == 0) {
-                    res &= copyAsset(am, assetPath + "/" + file, path + "/" + file);
-                } else {
-                    res &= copyAssetFolder(am, assetPath + "/" + file, path + "/" + file);
-                }
-            }
-            return res;
-        } catch (IOException e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
-
-    private boolean copyAsset(AssetManager assetManager,
-                                    String fromAssetPath, String toPath) {
-        InputStream in;
-        File parent = new File(toPath).getParentFile();
-        if (!parent.exists() && !parent.mkdirs()) {
-            Log.d(TAG, "Unable to create " + parent.getAbsolutePath());
-        }
-
-        try {
-            in = assetManager.open(fromAssetPath);
-            copyInputStreamToFile(in, new File(toPath));
-            in.close();
-            return true;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
-
     private void handleExtractType1Flavor(Context themeContext, Overlay overlay, String typeName,
                                           File overlayFolder, SharedPreferences.Editor edit) {
         OverlayFlavor type = overlay.flavors.get(typeName);
@@ -702,7 +663,7 @@ public class OmsBackendService extends BaseThemeService {
                     if (n.contains("values")) {
                         for (String s : am.list(of + "/" + n)) {
                             if (s.equals(type.key)) {
-                                copyAsset(am, "overlays/" + overlay.targetPackage
+                                AssetUtils.copyAsset(am, "overlays/" + overlay.targetPackage
                                                 + "/" + type.selected,
                                         overlayFolder.getAbsolutePath() + "/res/"
                                                 + n + "/" + type.key);
