@@ -586,8 +586,9 @@ public class OmsBackendService extends BaseThemeService {
                     if (!flavor.contains("_")) {
                         try {
                             String flavorName = IOUtils.toString(themeContext.getAssets().open(
-                                    "overlays/" + overlay.targetPackage + "/" + flavor), Charset.defaultCharset());
-                            flavorMap.put(flavor, new OverlayFlavor(flavorName, flavor));
+                                    "overlays/" + overlay.targetPackage + "/" + flavor),
+                                            Charset.defaultCharset());
+                            flavorMap.put(flavor, new OverlayFlavor(flavor, flavorName));
                         } catch (IOException e) {
                             // ignore
                         }
