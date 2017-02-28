@@ -304,8 +304,8 @@ public class OmsBackendService extends BaseThemeService {
                             ".apk", theme.packageName + "." + overlay.targetPackage);
                 }
                 edit.apply();
-                mOverlayManager.refresh(UserHandle.USER_CURRENT);
-                sendBroadcast(new Intent("slim.action.INSTALL_FINISHED"));
+                //mOverlayManager.refresh(UserHandle.USER_CURRENT);
+                sendFinishedBroadcast();
                 notifyInstallComplete();
                 return true;
             } catch (PackageManager.NameNotFoundException e) {
@@ -497,7 +497,7 @@ public class OmsBackendService extends BaseThemeService {
                 }
                 try {
                     if (!mOverlayManager.setEnabled(packageName,
-                            true, UserHandle.USER_CURRENT, true)) {
+                            true, UserHandle.USER_CURRENT, false)) {
                         Log.e(TAG, "Failed to enable overlay - " + packageName);
                     }
                 } catch (Exception e) {
@@ -539,8 +539,9 @@ public class OmsBackendService extends BaseThemeService {
                     for (OverlayInfo oi : ois) {
                         if (oi.packageName.equals(themeContext.getPackageName() +
                                 "." + overlay.targetPackage)) {
-                            overlay.checked = true;
-                            overlay.isOverlayEnabled = (oi.state == OverlayInfo.STATE_APPROVED_ENABLED);
+                            overlay.checked = (oi.state == OverlayInfo.STATE_APPROVED_ENABLED);
+                            overlay.isOverlayEnabled = (oi.state == OverlayInfo.STATE_APPROVED_ENABLED
+                                    || oi.state == OverlayInfo.STATE_APPROVED_DISABLED);
                             break;
                         }
                     }
@@ -685,4 +686,9 @@ public class OmsBackendService extends BaseThemeService {
 
         return false;
     }
+
+    private void sendFinishedBroadcast() {
+        Intent intent = new Intent("slim.action.INSTALL_FINISHED");
+        sendBroadcast(intent);
+    } 
 }
