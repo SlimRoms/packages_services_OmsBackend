@@ -176,7 +176,17 @@ public class OmsBackendService extends BaseThemeService {
                     if (fonts.length > 0) {
                         OverlayGroup fontGroup = new OverlayGroup();
                         for (String font : fonts) {
+                            // cache font for further preview
+                            File fontFile = new File(getBaseContext().getCacheDir(),
+                                    theme.packageName + "/fonts/" + font);
+                            if (fontFile.exists()) {
+                                fontFile.delete();
+                            }
+                            AssetUtils.copyAsset(themeContext.getAssets(), "fonts/"
+                                    + font, fontFile.getAbsolutePath());
+
                             Overlay fon = new Overlay(font, font, true);
+                            fon.tag = fontFile.getAbsolutePath();
                             fontGroup.overlays.add(fon);
                         }
                         info.groups.put(OverlayGroup.FONTS, fontGroup);
