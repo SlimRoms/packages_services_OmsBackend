@@ -34,8 +34,6 @@ public class OmsBackendService extends BaseThemeService {
 
     private static final String TAG = "OmsBackendService";
 
-    private static final String BOOTANIMATION_CACHED_SUFFIX = "_bootanimation.zip";
-
     private HashMap<String, String> mSystemUIPackages = new HashMap<>();
 
     private PackageManagerUtils mPMUtils;
@@ -189,7 +187,7 @@ public class OmsBackendService extends BaseThemeService {
                         for (String bootani : bootanis) {
                             // cache bootanimation for further preview
                             File bootanimFile = new File(getBaseContext().getCacheDir(),
-                                    theme.packageName + "/" + bootani + BOOTANIMATION_CACHED_SUFFIX);
+                                    theme.packageName + "/bootanimation/" + bootani);
                             if (bootanimFile.exists()) {
                                 bootanimFile.delete();
                             }
