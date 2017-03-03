@@ -1,5 +1,6 @@
 package com.slimroms.omsbackend;
 
+import android.annotation.SuppressLint;
 import android.app.ActivityManagerNative;
 import android.app.IActivityManager;
 import android.content.Context;
@@ -456,39 +457,24 @@ public class OmsBackendService extends BaseThemeService {
         return true;
     }
 
+    @SuppressLint("SetWorldReadable")
     private String getAapt() {
         String path = getFilesDir().getAbsolutePath() + "/aapt";
-        if (new File(path).exists()) {
+        File aaptFile = new File(path);
+        if (aaptFile.exists()) {
         } else {
             try {
-                copyInputStreamToFile(getAssets().open("aapt"), new File(path));
+                copyInputStreamToFile(getAssets().open("aapt"), aaptFile);
             } catch (IOException e) {
                 e.printStackTrace();
                 return null;
             }
         }
-        runCommand("chmod 777 " + path);
+        // chmod 755
+        aaptFile.setReadable(true, false);
+        aaptFile.setWritable(true, true);
+        aaptFile.setExecutable(true, false);
         return path;
-    }
-
-    public static void runCommand(String cmd) {
-        try {
-            Process process = Runtime.getRuntime().exec("sh");
-            DataOutputStream os = new DataOutputStream(
-                    process.getOutputStream());
-            os.writeBytes(cmd + "\n");
-            os.writeBytes("exit\n");
-            os.flush();
-
-            int exitCode = process.waitFor();
-            String output = IOUtils.toString(process.getInputStream(), Charset.defaultCharset());
-            String error = IOUtils.toString(process.getErrorStream(), Charset.defaultCharset());
-            if (exitCode != 0 || (!"".equals(error) && null != error)) {
-                Log.e(TAG,  "cmd: " + cmd + " exitCode:" + exitCode + " error: " + error);
-            }
-        } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
-        }
     }
 
     private void installAndEnable(String apk, String packageName) {
