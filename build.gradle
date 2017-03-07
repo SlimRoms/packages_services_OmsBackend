@@ -3,7 +3,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:2.3.0-rc1'
+        classpath 'com.android.tools.build:gradle:2.3.0'
     }
 }
 
@@ -48,6 +48,5 @@ android {
 
 dependencies {
     compile 'com.slimroms.themecore:core-debug:1.0@aar'
-    compile 'commons-io:commons-io:2.5'
     compile 'com.android.support:appcompat-v7:25.2.0'
 }
