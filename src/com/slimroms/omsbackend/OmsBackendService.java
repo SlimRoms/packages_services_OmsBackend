@@ -17,6 +17,8 @@ import android.os.ServiceManager;
 import android.os.UserHandle;
 import android.text.TextUtils;
 import android.util.Log;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.slimroms.themecore.*;
 import kellinwood.security.zipsigner.ZipSigner;
 import org.apache.commons.io.FileUtils;
@@ -34,6 +36,8 @@ import static org.apache.commons.io.FileUtils.copyInputStreamToFile;
 public class OmsBackendService extends BaseThemeService {
 
     private static final String TAG = "OmsBackendService";
+    private static final String BOOTANIMATION_FILE = "/data/system/theme/bootanimation.zip";
+    private static final String BOOTANIMATION_METADATA = "/data/system/theme/bootanimation-meta.json";
 
     private HashMap<String, String> mSystemUIPackages = new HashMap<>();
 
@@ -205,7 +209,7 @@ public class OmsBackendService extends BaseThemeService {
                             AssetUtils.copyAsset(themeContext.getAssets(), "bootanimation/"
                                     + bootani, bootanimFile.getAbsolutePath());
 
-                            Overlay bootanimation = new Overlay(bootani, bootani, true);
+                            Overlay bootanimation = new Overlay(bootani, OverlayGroup.BOOTANIMATIONS, true);
                             bootanimation.tag = bootanimFile.getAbsolutePath();
                             bootanimations.overlays.add(bootanimation);
                         }
@@ -261,58 +265,113 @@ public class OmsBackendService extends BaseThemeService {
             return 0;
         }
 
+        @SuppressLint("SetWorldReadable")
         @Override
         public boolean installOverlaysFromTheme(Theme theme, OverlayThemeInfo info)
                 throws RemoteException {
+            final int totalCount = info.getSelectedCount();
+            if (totalCount == 0) {
+                return false;
+            }
+            int index = 0;
+
             if (mPMUtils == null) {
                 mPMUtils = new PackageManagerUtils(getBaseContext());
             }
             try {
                 File themeCache = setupCache(theme.packageName);
                 Context themeContext = getBaseContext().createPackageContext(theme.packageName, 0);
+
+                // handle overlays first
                 OverlayGroup overlays = info.groups.get(OverlayGroup.OVERLAYS);
-                SharedPreferences prefs = getSharedPreferences(theme.packageName + "_prefs", 0);
-                SharedPreferences.Editor edit = prefs.edit();
-                if (!TextUtils.isEmpty(overlays.selectedStyle)) {
-                    edit.putString("selectedStyle", overlays.selectedStyle);
-                }
-                for (Overlay overlay : overlays.overlays) {
-                    if (!overlay.checked) continue;
-                    notifyInstallProgress(overlays.overlays.size(),
-                            overlays.overlays.indexOf(overlay));
-                    File overlayFolder = new File(themeCache, overlay.targetPackage);
-                    AssetUtils.copyAssetFolder(themeContext.getAssets(), "overlays/"
-                            + overlay.targetPackage + "/res",
-                            overlayFolder.getAbsolutePath() + "/res");
+                if (overlays != null) {
+                    SharedPreferences prefs = getSharedPreferences(theme.packageName + "_prefs", 0);
+                    SharedPreferences.Editor edit = prefs.edit();
                     if (!TextUtils.isEmpty(overlays.selectedStyle)) {
+                        edit.putString("selectedStyle", overlays.selectedStyle);
+                    }
+                    for (Overlay overlay : overlays.overlays) {
+                        if (!overlay.checked) continue;
+                        notifyInstallProgress(totalCount, ++index);
+                        File overlayFolder = new File(themeCache, overlay.targetPackage);
                         AssetUtils.copyAssetFolder(themeContext.getAssets(), "overlays/"
-                                + overlay.targetPackage + "/" + overlays.selectedStyle,
+                                        + overlay.targetPackage + "/res",
                                 overlayFolder.getAbsolutePath() + "/res");
-                    }
+                        if (!TextUtils.isEmpty(overlays.selectedStyle)) {
+                            AssetUtils.copyAssetFolder(themeContext.getAssets(), "overlays/"
+                                            + overlay.targetPackage + "/" + overlays.selectedStyle,
+                                    overlayFolder.getAbsolutePath() + "/res");
+                        }
 
-                    // handle type 2 overlay if non-default selected
-                    OverlayFlavor type2 = overlay.flavors.get("type2");
-                    if (type2 != null) {
-                        AssetUtils.copyAssetFolder(themeContext.getAssets(), "overlays/"
-                                + overlay.targetPackage + "/" + type2.selected,
-                                overlayFolder.getAbsolutePath() + "/res");
-                        edit.putString(overlay.targetPackage + "_type2", type2.selected);
-                    }
+                        // handle type 2 overlay if non-default selected
+                        OverlayFlavor type2 = overlay.flavors.get("type2");
+                        if (type2 != null) {
+                            AssetUtils.copyAssetFolder(themeContext.getAssets(), "overlays/"
+                                            + overlay.targetPackage + "/" + type2.selected,
+                                    overlayFolder.getAbsolutePath() + "/res");
+                            edit.putString(overlay.targetPackage + "_type2", type2.selected);
+                        }
 
-                    // handle type1 last
-                    handleExtractType1Flavor(themeContext, overlay, "type1a", overlayFolder, edit);
-                    handleExtractType1Flavor(themeContext, overlay, "type1b", overlayFolder, edit);
-                    handleExtractType1Flavor(themeContext, overlay, "type1c", overlayFolder, edit);
+                        // handle type1 last
+                        handleExtractType1Flavor(themeContext, overlay, "type1a", overlayFolder, edit);
+                        handleExtractType1Flavor(themeContext, overlay, "type1b", overlayFolder, edit);
+                        handleExtractType1Flavor(themeContext, overlay, "type1c", overlayFolder, edit);
 
-                    generateManifest(theme, overlay, overlayFolder.getAbsolutePath());
-                    if (!compileOverlay(theme, overlay, overlayFolder.getAbsolutePath())) {
-                        continue;
+                        generateManifest(theme, overlay, overlayFolder.getAbsolutePath());
+                        if (!compileOverlay(theme, overlay, overlayFolder.getAbsolutePath())) {
+                            continue;
+                        }
+                        installAndEnable(getCacheDir().getAbsolutePath() + "/" + theme.packageName +
+                                "/overlays/" + theme.packageName + "." + overlay.targetPackage +
+                                ".apk", theme.packageName + "." + overlay.targetPackage);
                     }
-                    installAndEnable(getCacheDir().getAbsolutePath() + "/" + theme.packageName +
-                            "/overlays/" + theme.packageName + "." + overlay.targetPackage +
-                            ".apk", theme.packageName + "." + overlay.targetPackage);
+                    edit.apply();
                 }
-                edit.apply();
+
+                // now for the bootanimation
+                overlays = info.groups.get(OverlayGroup.BOOTANIMATIONS);
+                if (overlays != null) {
+                    final File bootanimBinary = new File(BOOTANIMATION_FILE);
+                    final File bootanimMetadata = new File(BOOTANIMATION_METADATA);
+                    final Gson gson = new GsonBuilder().create();
+
+                    for (Overlay overlay : overlays.overlays) {
+                        if (overlay.checked) {
+                            notifyInstallProgress(totalCount, ++index);
+
+                            // cleaning up previous installation
+                            if (bootanimBinary.exists()) {
+                                bootanimBinary.delete();
+                            }
+                            if (bootanimMetadata.exists()) {
+                                bootanimMetadata.delete();
+                            }
+
+                            // apply bootanimation
+                            AssetUtils.copyAsset(themeContext.getAssets(), "bootanimation/"
+                                    + overlay.overlayName, bootanimBinary.getAbsolutePath());
+                            // chmod 644
+                            bootanimBinary.setReadable(true, false);
+                            bootanimBinary.setWritable(true, true);
+                            bootanimBinary.setExecutable(false, false);
+
+                            // save metadata
+                            try {
+                                final String json = gson.toJson(overlay);
+                                FileUtils.writeStringToFile(bootanimMetadata, json, Charset.defaultCharset());
+                                // chmod 644
+                                bootanimMetadata.setReadable(true, false);
+                                bootanimMetadata.setWritable(true, true);
+                                bootanimMetadata.setExecutable(false, false);
+                            }
+                            catch (IOException ex) {
+                                ex.printStackTrace();
+                            }
+                            break;
+                        }
+                    }
+                }
+
                 //mOverlayManager.refresh(UserHandle.USER_CURRENT);
                 sendFinishedBroadcast();
                 notifyInstallComplete();
