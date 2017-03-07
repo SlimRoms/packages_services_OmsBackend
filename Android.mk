@@ -57,7 +57,8 @@ LOCAL_STATIC_JAVA_LIBRARIES := \
     zipio \
     kellinwood-logging-android \
     kellinwood-logging-lib \
-    kellinwood-logging-log4j
+    kellinwood-logging-log4j \
+    gson
 
 LOCAL_SRC_FILES := $(call all-java-files-under, src)
 
