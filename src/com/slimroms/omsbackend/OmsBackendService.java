@@ -161,6 +161,21 @@ public class OmsBackendService extends BaseThemeService {
                     }
                 }
             }
+
+            // bootanimation
+            final File bootanimBinary = new File(BOOTANIMATION_FILE);
+            final File bootanimMetadata = new File(BOOTANIMATION_METADATA);
+            if (bootanimBinary.exists() && bootanimMetadata.exists()) {
+                try {
+                    final Gson gson = new GsonBuilder().create();
+                    final String json = FileUtils.readFileToString(bootanimMetadata, Charset.defaultCharset());
+                    final Overlay overlay = gson.fromJson(json, Overlay.class);
+                    group.overlays.add(overlay);
+                }
+                catch (IOException ex) {
+                    ex.printStackTrace();
+                }
+            }
             group.sort();
         }
 
