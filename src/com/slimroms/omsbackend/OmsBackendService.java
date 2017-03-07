@@ -422,6 +422,20 @@ public class OmsBackendService extends BaseThemeService {
             }
 
             for (Overlay overlay : overlays) {
+                // bootanimation
+                if (overlay.targetPackage.equals(OverlayGroup.BOOTANIMATIONS)) {
+                    notifyUninstallProgress(overlays.size(), overlays.indexOf(overlay));
+                    final File bootanimBinary = new File(BOOTANIMATION_FILE);
+                    final File bootanimMetadata = new File(BOOTANIMATION_METADATA);
+                    if (bootanimBinary.exists()) {
+                        bootanimBinary.delete();
+                    }
+                    if (bootanimMetadata.exists()) {
+                        bootanimMetadata.delete();
+                    }
+                    continue;
+                }
+
                 String packageName = overlay.themePackage + "." + overlay.targetPackage;
                 List<OverlayInfo> ois = overlayInfos.get(getTargetPackage(overlay.targetPackage));
                 if (ois != null) {
@@ -436,7 +450,7 @@ public class OmsBackendService extends BaseThemeService {
                     }
                 }
             }
-            sendBroadcast(new Intent("slim.action.INSTALL_FINISHED"));
+            sendFinishedBroadcast();
             notifyUninstallComplete();
             return true;
         }
