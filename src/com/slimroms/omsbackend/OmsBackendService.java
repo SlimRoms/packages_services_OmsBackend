@@ -5,7 +5,6 @@ import android.app.ActivityManagerNative;
 import android.app.IActivityManager;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.om.IOverlayManager;
 import android.content.om.OverlayInfo;
 import android.content.pm.ApplicationInfo;
@@ -15,6 +14,7 @@ import android.content.res.AssetManager;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.os.UserHandle;
+import android.system.Os;
 import android.text.TextUtils;
 import android.util.Log;
 import com.google.gson.Gson;
@@ -30,6 +30,8 @@ import java.io.*;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.*;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 import static org.apache.commons.io.FileUtils.copyInputStreamToFile;
 
@@ -53,6 +55,15 @@ public class OmsBackendService extends BaseThemeService {
         mSystemUIPackages.put("com.android.systemui.navbars", "System UI Navigation");
         mSystemUIPackages.put("com.android.systemui.statusbars", "System UI Status Bar Icons");
         mSystemUIPackages.put("com.android.systemui.tiles", "System UI QS Tile Icons");
+
+        Log.d("TEST", "create dir if not exists");
+        File theme = new File("/data/system/theme");
+        if (!theme.exists()) {
+            if (theme.mkdir()) {
+                android.os.FileUtils.setPermissions(theme, android.os.FileUtils.S_IRWXU |
+                        android.os.FileUtils.S_IRWXG| android.os.FileUtils.S_IROTH | android.os.FileUtils.S_IXOTH, -1, -1);
+            }
+        }
 
         mOverlayManager = IOverlayManager.Stub.asInterface(ServiceManager.getService("overlay"));
     }
@@ -183,7 +194,7 @@ public class OmsBackendService extends BaseThemeService {
         public void getThemeContent(Theme theme, OverlayThemeInfo info) throws RemoteException {
             PackageManager pm = getPackageManager();
             if (pm != null) {
-                SharedPreferences prefs = getSharedPreferences(theme.packageName + "_prefs", 0);
+                ThemePrefs prefs = getThemePrefs(theme.packageName + "_prefs");
                 try {
                     Context themeContext =
                             getBaseContext().createPackageContext(theme.packageName, 0);
@@ -199,13 +210,21 @@ public class OmsBackendService extends BaseThemeService {
                         OverlayGroup fontGroup = new OverlayGroup();
                         for (String font : fonts) {
                             // cache font for further preview
-                            File fontFile = new File(getBaseContext().getCacheDir(),
+                            File fontFile = new File(getCacheDir(),
                                     theme.packageName + "/fonts/" + font);
                             if (fontFile.exists()) {
                                 fontFile.delete();
                             }
                             AssetUtils.copyAsset(themeContext.getAssets(), "fonts/"
                                     + font, fontFile.getAbsolutePath());
+
+                            try {
+                                Os.chmod(fontFile.getAbsolutePath(), 00777);
+                                Os.chmod(fontFile.getParent(), 00777);
+                                Os.chmod(fontFile.getParentFile().getParent(), 00777);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
 
                             Overlay fon = new Overlay(font, font, true);
                             fon.tag = fontFile.getAbsolutePath();
@@ -218,15 +237,22 @@ public class OmsBackendService extends BaseThemeService {
                         OverlayGroup bootanimations = new OverlayGroup();
                         for (String bootani : bootanis) {
                             // cache bootanimation for further preview
-                            File bootanimFile = new File(getBaseContext().getCacheDir(),
+                            File bootanimFile = new File(getCacheDir(),
                                     theme.packageName + "/bootanimation/" + bootani);
                             if (bootanimFile.exists()) {
                                 bootanimFile.delete();
                             }
                             AssetUtils.copyAsset(themeContext.getAssets(), "bootanimation/"
                                     + bootani, bootanimFile.getAbsolutePath());
-
-                            Overlay bootanimation = new Overlay(bootani, OverlayGroup.BOOTANIMATIONS, true);
+                            try {
+                                Os.chmod(bootanimFile.getAbsolutePath(), 00777);
+                                Os.chmod(bootanimFile.getParent(), 00777);
+                                Os.chmod(bootanimFile.getParentFile().getParent(), 00777);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                            String bootName = bootani.substring(0, bootani.lastIndexOf("."));
+                            Overlay bootanimation = new Overlay(bootName, OverlayGroup.BOOTANIMATIONS, true);
                             bootanimation.tag = bootanimFile.getAbsolutePath();
                             bootanimations.overlays.add(bootanimation);
                         }
@@ -302,10 +328,9 @@ public class OmsBackendService extends BaseThemeService {
                 // handle overlays first
                 OverlayGroup overlays = info.groups.get(OverlayGroup.OVERLAYS);
                 if (overlays != null) {
-                    SharedPreferences prefs = getSharedPreferences(theme.packageName + "_prefs", 0);
-                    SharedPreferences.Editor edit = prefs.edit();
+                    ThemePrefs prefs = getThemePrefs(theme.packageName + "_prefs");
                     if (!TextUtils.isEmpty(overlays.selectedStyle)) {
-                        edit.putString("selectedStyle", overlays.selectedStyle);
+                        prefs.putString("selectedStyle", overlays.selectedStyle);
                     }
                     for (Overlay overlay : overlays.overlays) {
                         if (!overlay.checked) continue;
@@ -326,13 +351,13 @@ public class OmsBackendService extends BaseThemeService {
                             AssetUtils.copyAssetFolder(themeContext.getAssets(), "overlays/"
                                             + overlay.targetPackage + "/" + type2.selected,
                                     overlayFolder.getAbsolutePath() + "/res");
-                            edit.putString(overlay.targetPackage + "_type2", type2.selected);
+                            prefs.putString(overlay.targetPackage + "_type2", type2.selected);
                         }
 
                         // handle type1 last
-                        handleExtractType1Flavor(themeContext, overlay, "type1a", overlayFolder, edit);
-                        handleExtractType1Flavor(themeContext, overlay, "type1b", overlayFolder, edit);
-                        handleExtractType1Flavor(themeContext, overlay, "type1c", overlayFolder, edit);
+                        handleExtractType1Flavor(themeContext, overlay, "type1a", overlayFolder, prefs);
+                        handleExtractType1Flavor(themeContext, overlay, "type1b", overlayFolder, prefs);
+                        handleExtractType1Flavor(themeContext, overlay, "type1c", overlayFolder, prefs);
 
                         generateManifest(theme, overlay, overlayFolder.getAbsolutePath());
                         if (!compileOverlay(theme, overlay, overlayFolder.getAbsolutePath())) {
@@ -342,7 +367,6 @@ public class OmsBackendService extends BaseThemeService {
                                 "/overlays/" + theme.packageName + "." + overlay.targetPackage +
                                 ".apk", theme.packageName + "." + overlay.targetPackage);
                     }
-                    edit.apply();
                 }
 
                 // now for the bootanimation
@@ -365,23 +389,28 @@ public class OmsBackendService extends BaseThemeService {
                             }
 
                             // apply bootanimation
-                            AssetUtils.copyAsset(themeContext.getAssets(), "bootanimation/"
-                                    + overlay.overlayName, bootanimBinary.getAbsolutePath());
+                            File bootAnimCache = new File(overlay.tag);
+                            if (bootAnimCache.exists()) {
+                                bootAnimCache.renameTo(bootanimBinary);
+                            } else {
+                                AssetUtils.copyAsset(themeContext.getAssets(), "bootanimation/"
+                                        + overlay.overlayName + ".zip",
+                                        bootanimBinary.getAbsolutePath());
+                            }
                             // chmod 644
-                            bootanimBinary.setReadable(true, false);
-                            bootanimBinary.setWritable(true, true);
-                            bootanimBinary.setExecutable(false, false);
+                            try {
+                                Os.chmod(bootanimBinary.getAbsolutePath(), 00644);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
 
                             // save metadata
                             try {
                                 final String json = gson.toJson(overlay);
                                 FileUtils.writeStringToFile(bootanimMetadata, json, Charset.defaultCharset());
                                 // chmod 644
-                                bootanimMetadata.setReadable(true, false);
-                                bootanimMetadata.setWritable(true, true);
-                                bootanimMetadata.setExecutable(false, false);
-                            }
-                            catch (IOException ex) {
+                                Os.chmod(bootanimMetadata.getAbsolutePath(), 00644);
+                            } catch (Exception ex) {
                                 ex.printStackTrace();
                             }
                             break;
@@ -594,7 +623,7 @@ public class OmsBackendService extends BaseThemeService {
     }
 
     private OverlayGroup getOverlays(Context themeContext,
-            String[] packages, SharedPreferences prefs) {
+            String[] packages, ThemePrefs prefs) {
         OverlayGroup group = new OverlayGroup();
 
         Map<String, List<OverlayInfo>> overlays = new HashMap<>();
@@ -735,7 +764,7 @@ public class OmsBackendService extends BaseThemeService {
     }
 
     private void handleExtractType1Flavor(Context themeContext, Overlay overlay, String typeName,
-                                          File overlayFolder, SharedPreferences.Editor edit) {
+                                          File overlayFolder, ThemePrefs prefs) {
         OverlayFlavor type = overlay.flavors.get(typeName);
         if (type != null) {
             AssetManager am = themeContext.getAssets();
@@ -753,7 +782,7 @@ public class OmsBackendService extends BaseThemeService {
                         }
                     }
                 }
-                edit.putString(overlay.targetPackage + "_" + typeName, type.selected);
+                prefs.putString(overlay.targetPackage + "_" + typeName, type.selected);
             } catch (IOException e) {}
         }
     }
