@@ -192,7 +192,9 @@ public class OmsBackendService extends BaseThemeService {
                         info.groups.put(OverlayGroup.OVERLAYS,
                                 getOverlays(themeContext, olays, prefs));
                     }
-                    String[] fonts = themeContext.getAssets().list("fonts");
+                    // TODO: handle font overlays
+                    //String[] fonts = themeContext.getAssets().list("fonts");
+                    String[] fonts = new String[0];
                     if (fonts.length > 0) {
                         OverlayGroup fontGroup = new OverlayGroup();
                         for (String font : fonts) {
