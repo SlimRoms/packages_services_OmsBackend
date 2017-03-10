@@ -81,7 +81,7 @@ LOCAL_SRC_FILES := $(call all-java-files-under, src)
 LOCAL_RESOURCE_DIR := \
     $(LOCAL_PATH)/res \
     frameworks/support/v7/appcompat/res \
-    frameworks/opt/theme-core/res
+    frameworks/theme-core/res
 
 LOCAL_REQUIRED_MODULES := aapt
 
