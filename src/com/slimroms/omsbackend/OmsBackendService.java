@@ -56,7 +56,8 @@ public class OmsBackendService extends BaseThemeService {
 
     private static final String TAG = "OmsBackendService";
     private static final String BOOTANIMATION_FILE = "/data/system/theme/bootanimation.zip";
-    private static final String BOOTANIMATION_METADATA = "/data/system/theme/bootanimation-meta.json";
+    private static final String BOOTANIMATION_METADATA =
+            "/data/system/theme/bootanimation-meta.json";
 
     private HashMap<String, String> mSystemUIPackages = new HashMap<>();
 
@@ -72,15 +73,6 @@ public class OmsBackendService extends BaseThemeService {
         mSystemUIPackages.put("com.android.systemui.navbars", "System UI Navigation");
         mSystemUIPackages.put("com.android.systemui.statusbars", "System UI Status Bar Icons");
         mSystemUIPackages.put("com.android.systemui.tiles", "System UI QS Tile Icons");
-
-        Log.d("TEST", "create dir if not exists");
-        File theme = new File("/data/system/theme");
-        if (!theme.exists()) {
-            if (theme.mkdir()) {
-                android.os.FileUtils.setPermissions(theme, android.os.FileUtils.S_IRWXU |
-                        android.os.FileUtils.S_IRWXG| android.os.FileUtils.S_IROTH | android.os.FileUtils.S_IXOTH, -1, -1);
-            }
-        }
 
         mOverlayManager = IOverlayManager.Stub.asInterface(ServiceManager.getService("overlay"));
     }
@@ -151,7 +143,8 @@ public class OmsBackendService extends BaseThemeService {
                     Overlay overlay = null;
                     ApplicationInfo info = null;
                     try {
-                        info = getPackageManager().getApplicationInfo(overlayInfo.packageName, PackageManager.GET_META_DATA);
+                        info = getPackageManager().getApplicationInfo(overlayInfo.packageName,
+                                PackageManager.GET_META_DATA);
                     } catch (PackageManager.NameNotFoundException e) {
                         continue;
                     }
@@ -177,12 +170,14 @@ public class OmsBackendService extends BaseThemeService {
                                 targetPackage, targetPackageInstalled);
                     }
                     if (overlay != null) {
-                        overlay.isOverlayEnabled = (overlayInfo.state == OverlayInfo.STATE_APPROVED_ENABLED);
+                        overlay.isOverlayEnabled =
+                                (overlayInfo.state == OverlayInfo.STATE_APPROVED_ENABLED);
                         overlay.overlayVersion = info.metaData.getFloat("theme_version", 0f);
                         overlay.themePackage = info.metaData.getString("theme_package", null);
                         if (overlay.themePackage == null) {
                             // fallback substratum compatibility
-                            overlay.themePackage = info.metaData.getString("Substratum_Parent", null);
+                            overlay.themePackage =
+                                    info.metaData.getString("Substratum_Parent", null);
                         }
                         overlay.isOverlayInstalled = true;
                         group.overlays.add(overlay);
@@ -196,7 +191,8 @@ public class OmsBackendService extends BaseThemeService {
             if (bootanimBinary.exists() && bootanimMetadata.exists()) {
                 try {
                     final Gson gson = new GsonBuilder().create();
-                    final String json = FileUtils.readFileToString(bootanimMetadata, Charset.defaultCharset());
+                    final String json = FileUtils.readFileToString(bootanimMetadata,
+                            Charset.defaultCharset());
                     final Overlay overlay = gson.fromJson(json, Overlay.class);
                     group.overlays.add(overlay);
                 }
@@ -269,15 +265,16 @@ public class OmsBackendService extends BaseThemeService {
                                 e.printStackTrace();
                             }
                             String bootName = bootani.substring(0, bootani.lastIndexOf("."));
-                            Overlay bootanimation = new Overlay(bootName, OverlayGroup.BOOTANIMATIONS, true);
+                            Overlay bootanimation = new Overlay(bootName,
+                                    OverlayGroup.BOOTANIMATIONS, true);
                             bootanimation.tag = bootanimFile.getAbsolutePath();
                             bootanimations.overlays.add(bootanimation);
                         }
                         info.groups.put(OverlayGroup.BOOTANIMATIONS, bootanimations);
                     }
 
-                    ApplicationInfo aInfo = getPackageManager().getApplicationInfo(theme.packageName,
-                            PackageManager.GET_META_DATA);
+                    ApplicationInfo aInfo = getPackageManager().getApplicationInfo(
+                            theme.packageName, PackageManager.GET_META_DATA);
                     String wallpapersXmlUri = aInfo.metaData.getString("Substratum_Wallpapers");
                     if (wallpapersXmlUri != null && isOnline()) {
                         try {
@@ -372,9 +369,12 @@ public class OmsBackendService extends BaseThemeService {
                         }
 
                         // handle type1 last
-                        handleExtractType1Flavor(themeContext, overlay, "type1a", overlayFolder, prefs);
-                        handleExtractType1Flavor(themeContext, overlay, "type1b", overlayFolder, prefs);
-                        handleExtractType1Flavor(themeContext, overlay, "type1c", overlayFolder, prefs);
+                        handleExtractType1Flavor(
+                                themeContext, overlay, "type1a", overlayFolder, prefs);
+                        handleExtractType1Flavor(
+                                themeContext, overlay, "type1b", overlayFolder, prefs);
+                        handleExtractType1Flavor(
+                                themeContext, overlay, "type1c", overlayFolder, prefs);
 
                         generateManifest(theme, overlay, overlayFolder.getAbsolutePath());
                         if (!compileOverlay(theme, overlay, overlayFolder.getAbsolutePath())) {
@@ -424,7 +424,8 @@ public class OmsBackendService extends BaseThemeService {
                             // save metadata
                             try {
                                 final String json = gson.toJson(overlay);
-                                FileUtils.writeStringToFile(bootanimMetadata, json, Charset.defaultCharset());
+                                FileUtils.writeStringToFile(
+                                        bootanimMetadata, json, Charset.defaultCharset());
                                 // chmod 644
                                 Os.chmod(bootanimMetadata.getAbsolutePath(), 00644);
                             } catch (Exception ex) {
@@ -595,7 +596,7 @@ public class OmsBackendService extends BaseThemeService {
 
     @SuppressLint("SetWorldReadable")
     private String getAapt() {
-        String path = getFilesDir().getAbsolutePath() + "/aapt";
+        String path = "/data/system/theme/bin/aapt";
         File aaptFile = new File(path);
         if (aaptFile.exists()) {
         } else {
@@ -607,9 +608,11 @@ public class OmsBackendService extends BaseThemeService {
             }
         }
         // chmod 755
-        aaptFile.setReadable(true, false);
-        aaptFile.setWritable(true, true);
-        aaptFile.setExecutable(true, false);
+        try {
+            Os.chmod(aaptFile.getAbsolutePath(), 00755);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         return path;
     }
 
@@ -670,8 +673,9 @@ public class OmsBackendService extends BaseThemeService {
                         if (oi.packageName.equals(themeContext.getPackageName() +
                                 "." + overlay.targetPackage)) {
                             overlay.checked = (oi.state == OverlayInfo.STATE_APPROVED_ENABLED);
-                            overlay.isOverlayEnabled = (oi.state == OverlayInfo.STATE_APPROVED_ENABLED
-                                    || oi.state == OverlayInfo.STATE_APPROVED_DISABLED);
+                            overlay.isOverlayEnabled =
+                                    (oi.state == OverlayInfo.STATE_APPROVED_ENABLED
+                                        || oi.state == OverlayInfo.STATE_APPROVED_DISABLED);
                             break;
                         }
                     }
