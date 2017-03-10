@@ -317,11 +317,6 @@ public class OmsBackendService extends BaseThemeService {
             }
         }
 
-        @Override
-        public int checkPermissions() throws RemoteException {
-            return 0;
-        }
-
         @SuppressLint("SetWorldReadable")
         @Override
         public boolean installOverlaysFromTheme(Theme theme, OverlayThemeInfo info)
@@ -511,11 +506,6 @@ public class OmsBackendService extends BaseThemeService {
 
         @Override
         public void reboot() throws RemoteException {
-        }
-
-        @Override
-        public boolean isAvailable() throws RemoteException {
-            return true;
         }
     }
 
