@@ -249,14 +249,16 @@ public class OmsBackendService extends BaseThemeService {
                     if (bootanis.length > 0) {
                         OverlayGroup bootanimations = new OverlayGroup();
                         for (String bootani : bootanis) {
+                            String bootName = bootani.substring(0, bootani.lastIndexOf("."));
                             // cache bootanimation for further preview
                             File bootanimFile = new File(getCacheDir(),
                                     theme.packageName + "/bootanimation/" + bootani);
                             if (bootanimFile.exists()) {
                                 bootanimFile.delete();
                             }
-                            AssetUtils.copyAsset(themeContext.getAssets(), "bootanimation/"
-                                    + bootani, bootanimFile.getAbsolutePath());
+
+                            parseBootanimation(themeContext, bootName, bootanimFile);
+
                             try {
                                 Os.chmod(bootanimFile.getAbsolutePath(), 00777);
                                 Os.chmod(bootanimFile.getParent(), 00777);
@@ -264,7 +266,6 @@ public class OmsBackendService extends BaseThemeService {
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }
-                            String bootName = bootani.substring(0, bootani.lastIndexOf("."));
                             Overlay bootanimation = new Overlay(bootName,
                                     OverlayGroup.BOOTANIMATIONS, true);
                             bootanimation.tag = bootanimFile.getAbsolutePath();
@@ -405,9 +406,8 @@ public class OmsBackendService extends BaseThemeService {
                             if (bootAnimCache.exists()) {
                                 bootAnimCache.renameTo(bootanimBinary);
                             } else {
-                                AssetUtils.copyAsset(themeContext.getAssets(), "bootanimation/"
-                                        + overlay.overlayName + ".zip",
-                                        bootanimBinary.getAbsolutePath());
+                                parseBootanimation(themeContext, overlay.overlayName,
+                                        bootanimBinary);
                             }
                             // chmod 644
                             try {
@@ -815,5 +815,58 @@ public class OmsBackendService extends BaseThemeService {
     private void sendFinishedBroadcast() {
         Intent intent = new Intent("slim.action.INSTALL_FINISHED");
         sendBroadcast(intent);
-    } 
+    }
+
+    private boolean parseBootanimation(Context themeContext, String bootAnimName, File bootanimFile) {
+        File bootanimCacheFile = new File(bootanimFile.getParent(), "__" + bootanimFile.getName());
+        if (bootanimCacheFile.exists()) {
+            bootanimCacheFile.delete();
+        }
+
+        // extract the asset first
+        AssetUtils.copyAsset(themeContext.getAssets(), "bootanimation/"
+                + bootAnimName + ".zip", bootanimCacheFile.getAbsolutePath());
+
+        try {
+            // check if it's a flashable zip
+            ZipFile zip = new ZipFile(bootanimCacheFile);
+            ZipEntry ze;
+            boolean isFlashableZip = false;
+            for (Enumeration<? extends ZipEntry> e = zip.entries(); e.hasMoreElements(); ) {
+                ze = e.nextElement();
+                final String zeName = ze.getName();
+                if (zeName.startsWith("META-INF")) {
+                    isFlashableZip = true;
+                    break;
+                }
+                else if (zeName.startsWith("part0")) {
+                    isFlashableZip = false;
+                    break;
+                }
+            }
+            if (isFlashableZip) {
+                // extract the proper one
+                ze = zip.getEntry("system/media/bootanimation.zip");
+                if (ze != null) {
+                    InputStream stream = zip.getInputStream(ze);
+                    try {
+                        FileUtils.copyInputStreamToFile(stream, bootanimFile);
+                    }
+                    finally {
+                        stream.close();
+                    }
+                }
+            }
+            else {
+                // easy part, just rename the file
+                bootanimCacheFile.renameTo(bootanimFile);
+            }
+
+            return true;
+        }
+        catch (IOException ex) {
+            ex.printStackTrace();
+            return false;
+        }
+    }
 }
