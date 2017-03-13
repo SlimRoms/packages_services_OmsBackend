@@ -356,7 +356,7 @@ public class OmsBackendService extends BaseThemeService {
                                     packageName, PackageManager.GET_META_DATA);
                             if (aInfo.metaData != null) {
                                 float themeVersion = aInfo.metaData.getFloat("theme_version", 0f);
-                                if (themeVersion >= Float.parseFloat(theme.themeVersion)) {
+                                if (themeVersion == Float.parseFloat(theme.themeVersion)) {
                                     continue;
                                 }
                             }
