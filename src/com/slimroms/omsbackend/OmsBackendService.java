@@ -856,6 +856,8 @@ public class OmsBackendService extends BaseThemeService {
                         stream.close();
                     }
                 }
+                // cleaning up
+                bootanimCacheFile.delete();
             }
             else {
                 // easy part, just rename the file
