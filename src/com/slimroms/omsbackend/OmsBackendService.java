@@ -569,12 +569,21 @@ public class OmsBackendService extends BaseThemeService {
         if (signedOverlay.exists()) {
             signedOverlay.delete();
         }
+
+        ApplicationInfo info = null;
+        try {
+            info = getPackageManager().getApplicationInfo(overlay.targetPackage,
+                    PackageManager.GET_META_DATA);
+        } catch (PackageManager.NameNotFoundException e) {
+        }
+
         try {
             Process nativeApp = Runtime.getRuntime().exec(new String[]{
                     getAapt(), "p",
                     "-M", overlayPath + "/AndroidManifest.xml",
                     "-S", overlayPath + "/res",
                     "-I", "/system/framework/framework-res.apk",
+                    info != null ? "-I" : "", info != null ? info.sourceDir : "",
                     "-F", unsignedOverlay.getAbsolutePath()
             });
             nativeApp.waitFor();
