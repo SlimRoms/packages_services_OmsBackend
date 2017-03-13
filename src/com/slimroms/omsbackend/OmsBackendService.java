@@ -348,6 +348,21 @@ public class OmsBackendService extends BaseThemeService {
                     for (Overlay overlay : overlays.overlays) {
                         if (!overlay.checked) continue;
                         notifyInstallProgress(totalCount, ++index);
+
+                        // check if installed and latest
+                        String packageName = theme.packageName + "." + overlay.targetPackage;
+                        try {
+                            ApplicationInfo aInfo = getPackageManager().getApplicationInfo(
+                                    packageName, PackageManager.GET_META_DATA);
+                            if (aInfo.metaData != null) {
+                                float themeVersion = aInfo.metaData.getFloat("theme_version", 0f);
+                                if (themeVersion >= Float.parseFloat(theme.themeVersion)) {
+                                    continue;
+                                }
+                            }
+                        } catch (PackageManager.NameNotFoundException e) {
+                        }
+
                         File overlayFolder = new File(themeCache, overlay.targetPackage);
                         AssetUtils.copyAssetFolder(themeContext.getAssets(), "overlays/"
                                         + overlay.targetPackage + "/res",
