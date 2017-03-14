@@ -180,7 +180,8 @@ public class OmsBackendService extends BaseThemeService {
                         if (overlay.themePackage == null) {
                             // fallback substratum compatibility
                             overlay.themePackage =
-                                    info.metaData.getString("Substratum_Parent", null);
+                                    String.format("%s (Substratum)",
+                                            info.metaData.getString("Substratum_Parent", null));
                         }
                         overlay.isOverlayInstalled = true;
                         group.overlays.add(overlay);
