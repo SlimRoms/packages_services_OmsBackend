@@ -461,7 +461,6 @@ public class OmsBackendService extends BaseThemeService {
 
         @Override
         public boolean uninstallOverlays(OverlayGroup group) throws RemoteException {
-            Log.d("TEST", "uninstallOverlays");
             List<Overlay> overlays = new ArrayList<>();
             for (Overlay overlay : group.overlays) {
                 if (overlay.checked) {
@@ -519,11 +518,12 @@ public class OmsBackendService extends BaseThemeService {
 
         @Override
         public boolean isRebootRequired() throws RemoteException {
-            return false;
+            return true;
         }
 
         @Override
         public void reboot() throws RemoteException {
+            ActivityManagerNative.getDefault().restart();
         }
     }
 
@@ -647,7 +647,7 @@ public class OmsBackendService extends BaseThemeService {
                 }
                 try {
                     if (!mOverlayManager.setEnabled(packageName,
-                            true, UserHandle.USER_CURRENT, false)) {
+                            true, UserHandle.USER_CURRENT, true)) {
                         Log.e(TAG, "Failed to enable overlay - " + packageName);
                     }
                 } catch (Exception e) {
