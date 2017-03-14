@@ -863,7 +863,7 @@ public class OmsBackendService extends BaseThemeService {
                 e.printStackTrace();
             }
         } else {
-            Log.e(TAG, "Flavor " + typeName + "is null!");
+            Log.e(TAG, "Flavor " + typeName + " is null!");
         }
     }
 
