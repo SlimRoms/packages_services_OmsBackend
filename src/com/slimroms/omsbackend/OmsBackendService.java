@@ -498,11 +498,17 @@ public class OmsBackendService extends BaseThemeService {
                 e.printStackTrace();
             }
 
+            final StringBuilder sb = new StringBuilder();
             for (Overlay overlay : overlays) {
+                sb.setLength(0);
+                sb.append("Uninstalling overlay");
+                sb.append(" name=" + overlay.overlayName);
+
                 // bootanimation
                 if (overlay.targetPackage.equals(OverlayGroup.BOOTANIMATIONS)) {
                     notifyUninstallProgress(overlays.size(), overlays.indexOf(overlay),
                             overlay.overlayName);
+                    sb.append(", type=bootanimation");
                     final File bootanimBinary = new File(BOOTANIMATION_FILE);
                     final File bootanimMetadata = new File(BOOTANIMATION_METADATA);
                     if (bootanimBinary.exists()) {
@@ -511,10 +517,14 @@ public class OmsBackendService extends BaseThemeService {
                     if (bootanimMetadata.exists()) {
                         bootanimMetadata.delete();
                     }
+                    Log.d(TAG, sb.toString());
+                    Log.d(TAG, "Complete");
                     continue;
                 }
 
                 String packageName = overlay.themePackage + "." + overlay.targetPackage;
+                sb.append(", package=" + packageName);
+                Log.d(TAG, sb.toString());
                 List<OverlayInfo> ois = overlayInfos.get(getTargetPackage(overlay.targetPackage));
                 if (ois != null) {
                     for (OverlayInfo oi : ois) {
@@ -523,10 +533,18 @@ public class OmsBackendService extends BaseThemeService {
                                     overlay.overlayName);
                             mOverlayManager.setEnabled(packageName,
                                     false, UserHandle.USER_CURRENT, false);
-                            mPMUtils.uninstallPackage(packageName);
+                            if (mPMUtils.uninstallPackage(packageName)) {
+                                Log.d(TAG, "Complete");
+                            } else {
+                                Log.e(TAG, "Failed");
+                            }
                             break;
                         }
+                        Log.e(TAG, "No package name match found for " + packageName);
                     }
+                } else {
+                    Log.d(TAG, "No installed overlays found for target package "
+                            + getTargetPackage(overlay.targetPackage));
                 }
             }
             sendFinishedBroadcast();
