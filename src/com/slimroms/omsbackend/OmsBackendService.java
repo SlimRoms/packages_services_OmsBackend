@@ -175,7 +175,7 @@ public class OmsBackendService extends BaseThemeService {
                     if (overlay != null) {
                         overlay.isOverlayEnabled =
                                 (overlayInfo.state == OverlayInfo.STATE_APPROVED_ENABLED);
-                        overlay.overlayVersion = info.metaData.getFloat("theme_version", 0f);
+                        overlay.overlayVersion = info.metaData.getString("theme_version", "");
                         overlay.themePackage = info.metaData.getString("theme_package", null);
                         if (overlay.themePackage == null) {
                             // fallback substratum compatibility
@@ -355,8 +355,8 @@ public class OmsBackendService extends BaseThemeService {
                             ApplicationInfo aInfo = getPackageManager().getApplicationInfo(
                                     packageName, PackageManager.GET_META_DATA);
                             if (aInfo.metaData != null) {
-                                float themeVersion = aInfo.metaData.getFloat("theme_version", 0f);
-                                if (themeVersion == Float.parseFloat(theme.themeVersion)) {
+                                String themeVersion = aInfo.metaData.getString("theme_version", "");
+                                if (TextUtils.equals(themeVersion, theme.themeVersion)) {
                                     continue;
                                 }
                             }
