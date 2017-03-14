@@ -337,30 +337,41 @@ public class OmsBackendService extends BaseThemeService {
             try {
                 File themeCache = setupCache(theme.packageName);
                 Context themeContext = getBaseContext().createPackageContext(theme.packageName, 0);
+                StringBuilder sb = new StringBuilder();
 
                 // handle overlays first
                 OverlayGroup overlays = info.groups.get(OverlayGroup.OVERLAYS);
                 if (overlays != null) {
                     ThemePrefs prefs = getThemePrefs(theme.packageName + "_prefs");
                     if (!TextUtils.isEmpty(overlays.selectedStyle)) {
+                        Log.d(TAG, "selectedStyle=" + overlays.selectedStyle);
                         prefs.putString("selectedStyle", overlays.selectedStyle);
                     }
                     for (Overlay overlay : overlays.overlays) {
                         if (!overlay.checked) continue;
+                        sb.setLength(0);
+                        sb.append("Installing overlay");
+                        sb.append(" name=" + overlay.overlayName);
                         notifyInstallProgress(totalCount, ++index);
 
                         // check if installed and latest
                         String packageName = theme.packageName + "." + overlay.targetPackage;
+                        sb.append(", package=" + packageName);
+                        sb.append(", newVersion=" + theme.themeVersion);
                         try {
                             ApplicationInfo aInfo = getPackageManager().getApplicationInfo(
                                     packageName, PackageManager.GET_META_DATA);
                             if (aInfo.metaData != null) {
                                 String themeVersion = aInfo.metaData.getString("theme_version", "");
+                                sb.append(", installedVersion=" + themeVersion);
                                 if (TextUtils.equals(themeVersion, theme.themeVersion)) {
+                                    Log.d(TAG, sb.toString());
+                                    Log.d(TAG, "Skipped");
                                     continue;
                                 }
                             }
                         } catch (PackageManager.NameNotFoundException e) {
+                            sb.append(", installedVersion=null");
                         }
 
                         File overlayFolder = new File(themeCache, overlay.targetPackage);
@@ -376,12 +387,16 @@ public class OmsBackendService extends BaseThemeService {
                         // handle type 2 overlay if non-default selected
                         OverlayFlavor type2 = overlay.flavors.get("type2");
                         if (type2 != null) {
+                            sb.append(", type2=" + type2.selected);
                             AssetUtils.copyAssetFolder(themeContext.getAssets(), "overlays/"
                                             + overlay.targetPackage + "/" + type2.selected,
                                     overlayFolder.getAbsolutePath() + "/res");
                             prefs.putString(overlay.targetPackage + "_type2", type2.selected);
+                        } else {
+                            sb.append(", type2=null");
                         }
 
+                        Log.d(TAG, sb.toString());
                         // handle type1 last
                         handleExtractType1Flavor(
                                 themeContext, overlay, "type1a", overlayFolder, prefs);
@@ -653,6 +668,8 @@ public class OmsBackendService extends BaseThemeService {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
+            } else {
+                Log.e(TAG, "Failed to install package " + apk);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -821,7 +838,11 @@ public class OmsBackendService extends BaseThemeService {
                     }
                 }
                 prefs.putString(overlay.targetPackage + "_" + typeName, type.selected);
-            } catch (IOException e) {}
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } else {
+            Log.e(TAG, "Flavor " + typeName + "is null!");
         }
     }
 
