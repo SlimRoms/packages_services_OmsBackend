@@ -335,6 +335,7 @@ public class OmsBackendService extends BaseThemeService {
                 mPMUtils = new PackageManagerUtils(getBaseContext());
             }
             try {
+                notifyInstallProgress(totalCount, 0, null);
                 File themeCache = setupCache(theme.packageName);
                 Context themeContext = getBaseContext().createPackageContext(theme.packageName, 0);
                 StringBuilder sb = new StringBuilder();
@@ -352,7 +353,7 @@ public class OmsBackendService extends BaseThemeService {
                         sb.setLength(0);
                         sb.append("Installing overlay");
                         sb.append(" name=" + overlay.overlayName);
-                        notifyInstallProgress(totalCount, ++index);
+                        notifyInstallProgress(totalCount, ++index, overlay.overlayName);
 
                         // check if installed and latest
                         String packageName = theme.packageName + "." + overlay.targetPackage;
@@ -424,7 +425,7 @@ public class OmsBackendService extends BaseThemeService {
 
                     for (Overlay overlay : overlays.overlays) {
                         if (overlay.checked) {
-                            notifyInstallProgress(totalCount, ++index);
+                            notifyInstallProgress(totalCount, ++index, overlay.overlayName);
 
                             // cleaning up previous installation
                             if (bootanimBinary.exists()) {
@@ -488,7 +489,7 @@ public class OmsBackendService extends BaseThemeService {
                 mPMUtils = new PackageManagerUtils(getBaseContext());
             }
 
-            notifyUninstallProgress(overlays.size(), 0);
+            notifyUninstallProgress(overlays.size(), 0, null);
 
             Map<String, List<OverlayInfo>> overlayInfos = new HashMap<>();
             try {
@@ -500,7 +501,8 @@ public class OmsBackendService extends BaseThemeService {
             for (Overlay overlay : overlays) {
                 // bootanimation
                 if (overlay.targetPackage.equals(OverlayGroup.BOOTANIMATIONS)) {
-                    notifyUninstallProgress(overlays.size(), overlays.indexOf(overlay));
+                    notifyUninstallProgress(overlays.size(), overlays.indexOf(overlay),
+                            overlay.overlayName);
                     final File bootanimBinary = new File(BOOTANIMATION_FILE);
                     final File bootanimMetadata = new File(BOOTANIMATION_METADATA);
                     if (bootanimBinary.exists()) {
@@ -517,7 +519,8 @@ public class OmsBackendService extends BaseThemeService {
                 if (ois != null) {
                     for (OverlayInfo oi : ois) {
                         if (oi.packageName.equals(packageName)) {
-                            notifyUninstallProgress(overlays.size(), overlays.indexOf(overlay));
+                            notifyUninstallProgress(overlays.size(), overlays.indexOf(overlay),
+                                    overlay.overlayName);
                             mOverlayManager.setEnabled(packageName,
                                     false, UserHandle.USER_CURRENT, false);
                             mPMUtils.uninstallPackage(packageName);
