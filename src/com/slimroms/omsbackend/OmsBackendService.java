@@ -399,6 +399,12 @@ public class OmsBackendService extends BaseThemeService {
                         }
 
                         Log.d(TAG, sb.toString());
+                        sb.setLength(0);
+                        sb.append("Available flavors:");
+                        for (String flavor : overlay.flavors.keySet()) {
+                            sb.append(" " + flavor);
+                        }
+                        Log.d(TAG, sb.toString());
                         // handle type1 last
                         handleExtractType1Flavor(
                                 themeContext, overlay, "type1a", overlayFolder, prefs);
