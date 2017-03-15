@@ -850,7 +850,7 @@ public class OmsBackendService extends BaseThemeService {
                 for (String n : am.list(of)) {
                     if (n.contains("values")) {
                         for (String s : am.list(of + "/" + n)) {
-                            if (s.equals(type.key)) {
+                            if (s.contains(type.key)) {
                                 AssetUtils.copyAsset(am, "overlays/" + overlay.targetPackage
                                                 + "/" + type.selected,
                                         overlayFolder.getAbsolutePath() + "/res/"
