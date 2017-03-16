@@ -176,7 +176,8 @@ public class OmsBackendService extends BaseThemeService {
                     if (overlay != null) {
                         overlay.isOverlayEnabled =
                                 (overlayInfo.state == OverlayInfo.STATE_APPROVED_ENABLED);
-                        overlay.overlayVersion = info.metaData.getString("theme_version", "");
+                        overlay.overlayVersion =
+                                info.metaData.getString("theme_version", "").replace("v=", "");
                         overlay.themePackage = info.metaData.getString("theme_package", null);
                         if (overlay.themePackage == null) {
                             // fallback substratum compatibility
@@ -365,7 +366,9 @@ public class OmsBackendService extends BaseThemeService {
                             ApplicationInfo aInfo = getPackageManager().getApplicationInfo(
                                     packageName, PackageManager.GET_META_DATA);
                             if (aInfo.metaData != null) {
-                                String themeVersion = aInfo.metaData.getString("theme_version", "");
+                                String themeVersion =
+                                        aInfo.metaData.getString("theme_version", "")
+                                                .replace("v=", "");
                                 sb.append(", installedVersion=" + themeVersion);
                                 if (TextUtils.equals(themeVersion, theme.themeVersion)) {
                                     Log.d(TAG, sb.toString());
@@ -588,7 +591,7 @@ public class OmsBackendService extends BaseThemeService {
         manifest.append("<overlay\n");
         manifest.append("android:targetPackage=\"" + targetPackage + "\"/>\n");
         manifest.append("<application>\n");
-        manifest.append("<meta-data android:name=\"theme_version\" android:value=\""
+        manifest.append("<meta-data android:name=\"theme_version\" android:value=\"v="
                 + theme.themeVersion + "\"/>\n");
         manifest.append("<meta-data android:name=\"theme_package\" android:value=\""
                 + theme.packageName + "\"/>\n");
