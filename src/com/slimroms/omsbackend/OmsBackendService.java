@@ -1043,22 +1043,4 @@ public class OmsBackendService extends BaseThemeService {
         }
         zos.close();
     }
-
-    private static void deleteContents(File file) {
-        if (file.isDirectory()) {
-            String[] children = file.list();
-            for (int i = 0; i < children.length; i++) {
-                File f = new File(file, children[i]);
-                if (f.isFile()) {
-                    if (f.delete()) {
-                        //Log.d(TAG, "Successfully deleted " + f.getPath());
-                    } else {
-                        //Log.d(TAG, "Failed to delete " + f.getPath());
-                    }
-                } else {
-                    deleteContents(f);
-                }
-            }
-        }
-    }
 }
