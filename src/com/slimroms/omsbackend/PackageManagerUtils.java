@@ -18,11 +18,13 @@
 package com.slimroms.omsbackend;
 
 import android.app.ActivityManager;
+import android.app.PackageDeleteObserver;
 import android.content.Context;
 import android.content.IIntentReceiver;
 import android.content.IIntentSender;
 import android.content.Intent;
 import android.content.IntentSender;
+import android.content.pm.IPackageDeleteObserver;
 import android.content.pm.IPackageInstaller;
 import android.content.pm.IPackageManager;
 import android.content.pm.PackageInstaller;
@@ -207,22 +209,36 @@ public class PackageManagerUtils {
     }
 
     public boolean uninstallPackage(String packageName) {
-        final HandlerThread handlerThread = new HandlerThread("results");
-        handlerThread.start();
+        LocalPackageDeleteObserver obs = new LocalPackageDeleteObserver();
         try {
-            ServiceManager.getService("package").shellCommand(
-                    FileDescriptor.in, FileDescriptor.out, FileDescriptor.err,
-                    new String[] { packageName },
-                    new ResultReceiver(new Handler(handlerThread.getLooper())));
-            return true;
-        } catch (RemoteException e) {
-            e.printStackTrace();
-        } finally {
-            handlerThread.quitSafely();
+            mPm.deletePackageAsUser(packageName, obs, 0, UserHandle.USER_CURRENT);
+            synchronized (obs) {
+                while (!obs.finished) {
+                    try {
+                        obs.wait();
+                    } catch (InterruptedException e) {
+                    }
+                }
+            }
+        } catch (RemoteException ex) {
+            ex.printStackTrace();
         }
-        return false;
+        return obs.result;
     }
 
+    class LocalPackageDeleteObserver extends IPackageDeleteObserver.Stub {
+        boolean finished;
+        boolean result;
+
+        @Override
+        public void packageDeleted(String name, int returnCode) {
+            synchronized (this) {
+                finished = true;
+                result = returnCode == PackageManager.DELETE_SUCCEEDED;
+                notifyAll();
+            }
+        }
+    }
     private static class LocalIntentReceiver {
         private final SynchronousQueue<Intent> mResult = new SynchronousQueue<>();
 
