@@ -479,6 +479,8 @@ public class OmsBackendService extends BaseThemeService {
                 //mOverlayManager.refresh(UserHandle.USER_CURRENT);
                 sendFinishedBroadcast();
                 notifyInstallComplete();
+                // Housekeeping: cleanup cache
+                deleteContents(themeCache);
                 return true;
             } catch (PackageManager.NameNotFoundException e) {
                 e.printStackTrace();
@@ -841,11 +843,13 @@ public class OmsBackendService extends BaseThemeService {
 
     private File setupCache(String packageName) {
         File cache = new File(getCacheDir(), packageName);
-        if (!cache.exists()) {
-            if (!cache.mkdirs()) {
-                Log.e(TAG, "unable to create directory : "
-                        + cache.getAbsolutePath());
-            }
+        if (cache.exists()) {
+            // Always start on a clean slate
+            deleteContents(cache);
+        }
+        if (!cache.mkdirs()) {
+            Log.e(TAG, "unable to create directory : "
+                    + cache.getAbsolutePath());
         }
         return cache;
     }
