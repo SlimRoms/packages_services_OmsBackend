@@ -212,12 +212,10 @@ public class PackageManagerUtils {
         LocalPackageDeleteObserver obs = new LocalPackageDeleteObserver();
         try {
             mPm.deletePackageAsUser(packageName, obs, 0, UserHandle.USER_CURRENT);
-            synchronized (obs) {
-                while (!obs.finished) {
-                    try {
-                        obs.wait();
-                    } catch (InterruptedException e) {
-                    }
+            while (!obs.finished) {
+                try {
+                    obs.wait();
+                } catch (InterruptedException e) {
                 }
             }
         } catch (RemoteException ex) {
@@ -232,11 +230,9 @@ public class PackageManagerUtils {
 
         @Override
         public void packageDeleted(String name, int returnCode) {
-            synchronized (this) {
-                finished = true;
-                result = returnCode == PackageManager.DELETE_SUCCEEDED;
-                notifyAll();
-            }
+            finished = true;
+            result = returnCode == PackageManager.DELETE_SUCCEEDED;
+            notifyAll();
         }
     }
     private static class LocalIntentReceiver {
