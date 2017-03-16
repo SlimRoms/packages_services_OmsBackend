@@ -819,7 +819,14 @@ public class OmsBackendService extends BaseThemeService {
             types = themeContext.getAssets().list("overlays/android");
             String def = IOUtils.toString(themeContext.getAssets().open("overlays/android/"
                     + "type3"), Charset.defaultCharset());
-            group.styles.put("type3", def);
+            boolean hasDefault = false;
+            for (String type : types) {
+                if (type.equals("res")) {
+                    hasDefault = true;
+                    break;
+                }
+            }
+            group.styles.put((hasDefault ? "type3" : ""), def);
         } catch (IOException e) {
             // ignore
         }
