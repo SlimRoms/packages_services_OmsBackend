@@ -318,6 +318,8 @@ public class OmsBackendService extends BaseThemeService {
                             ex.printStackTrace();
                         }
                     }
+                // Housekeeping: cleanup cache
+                prefs.removeFile();
                 } catch (PackageManager.NameNotFoundException|IOException e) {
                     e.printStackTrace();
                 }
@@ -428,6 +430,8 @@ public class OmsBackendService extends BaseThemeService {
                                 "/overlays/" + theme.packageName + "." + overlay.targetPackage +
                                 ".apk", theme.packageName + "." + overlay.targetPackage);
                     }
+                    // Housekeeping: cleanup cache
+                    prefs.removeFile();
                 }
 
                 // now for the bootanimation
