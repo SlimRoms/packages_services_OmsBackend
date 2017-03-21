@@ -634,9 +634,11 @@ public class OmsBackendService extends BaseThemeService {
 
         ApplicationInfo info = null;
         try {
-            info = getPackageManager().getApplicationInfo(overlay.targetPackage,
+            info = getPackageManager().getApplicationInfo(getTargetPackage(overlay.targetPackage),
                     PackageManager.GET_META_DATA);
         } catch (PackageManager.NameNotFoundException e) {
+            Log.e(TAG,"Traget package " + getTargetPackage(overlay.targetPackage) + " not found");
+            return false;
         }
 
         try {
