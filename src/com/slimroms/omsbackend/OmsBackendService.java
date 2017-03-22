@@ -590,10 +590,7 @@ public class OmsBackendService extends BaseThemeService {
     }
 
     private void generateManifest(Theme theme, Overlay overlay, String path) {
-        String targetPackage = overlay.targetPackage;
-        if (mSystemUIPackages.containsKey(targetPackage)) {
-            targetPackage = "com.android.systemui";
-        }
+        String targetPackage = getTargetPackage(overlay.targetPackage);
         StringBuilder manifest = new StringBuilder();
         manifest.append("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
         manifest.append("<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\"\n");
@@ -634,9 +631,11 @@ public class OmsBackendService extends BaseThemeService {
 
         ApplicationInfo info = null;
         try {
-            info = getPackageManager().getApplicationInfo(overlay.targetPackage,
+            info = getPackageManager().getApplicationInfo(getTargetPackage(overlay.targetPackage),
                     PackageManager.GET_META_DATA);
         } catch (PackageManager.NameNotFoundException e) {
+            Log.e(TAG,"Traget package " + getTargetPackage(overlay.targetPackage) + " not found");
+            return false;
         }
 
         try {
