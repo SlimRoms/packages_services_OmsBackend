@@ -659,6 +659,11 @@ public class OmsBackendService extends BaseThemeService {
             signedOverlay.delete();
         }
 
+        Log.d(TAG,"compileOverlay: overlayPath     = " + overlayPath);
+        Log.d(TAG,"compileOverlay: overlayFolder   = " + overlayFolder.getAbsolutePath());
+        Log.d(TAG,"compileOverlay: unsignedOverlay = " + unsignedOverlay.getAbsolutePath());
+        Log.d(TAG,"compileOverlay: signedOverlay   = " + signedOverlay.getAbsolutePath());
+
         ApplicationInfo info = null;
         try {
             info = getPackageManager().getApplicationInfo(getTargetPackage(overlay.targetPackage),
@@ -667,6 +672,8 @@ public class OmsBackendService extends BaseThemeService {
             Log.e(TAG,"Target package " + getTargetPackage(overlay.targetPackage) + " not found");
             return false;
         }
+
+        Log.d(TAG,"compileOverlay: info.sourceDir  = " + info.sourceDir);
 
         try {
             Process nativeApp = Runtime.getRuntime().exec(new String[]{
@@ -727,6 +734,7 @@ public class OmsBackendService extends BaseThemeService {
     private void installAndEnable(String apk, String packageName) {
         try {
             if (mPMUtils.installPackage(apk)) {
+                Log.d(TAG, "Successfully installed overlay - " + packageName);
                 OverlayInfo info = null;
                 while (info == null) {
                     try {
@@ -740,14 +748,18 @@ public class OmsBackendService extends BaseThemeService {
                     if (!mOverlayManager.setEnabled(packageName,
                             true, UserHandle.USER_CURRENT, true)) {
                         Log.e(TAG, "Failed to enable overlay - " + packageName);
+                    } else {
+                        Log.d(TAG, "Successfully enabled overlay - " + packageName);
                     }
                 } catch (Exception e) {
+                    Log.e(TAG, "Exception while enabling overlay - " + packageName);
                     e.printStackTrace();
                 }
             } else {
                 Log.e(TAG, "Failed to install package " + apk);
             }
         } catch (Exception e) {
+            Log.e(TAG, "Exception while installing overlay - " + packageName);
             e.printStackTrace();
         }
     }
