@@ -66,7 +66,8 @@ import static org.apache.commons.io.FileUtils.copyInputStreamToFile;
 
 public class OmsBackendService extends BaseThemeService {
 
-    private static final String TAG = "OmsBackendService";
+    private static final String TAG = "SlimTM-OmsBackendService";
+
     private static final String BOOTANIMATION_FILE = "/data/system/theme/bootanimation.zip";
     private static final String BOOTANIMATION_METADATA =
             "/data/system/theme/bootanimation-meta.json";
@@ -961,7 +962,7 @@ public class OmsBackendService extends BaseThemeService {
                 e.printStackTrace();
             }
         } else {
-            Log.e(TAG, "Flavor " + typeName + " is null!");
+            Log.d(TAG, "Flavor " + typeName + " is null!");
         }
     }
 
