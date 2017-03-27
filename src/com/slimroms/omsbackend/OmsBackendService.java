@@ -57,7 +57,6 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.*;
-import java.util.Map.Entry;
 import java.util.zip.*;
 
 import static org.apache.commons.io.FileUtils.copyInputStreamToFile;
@@ -877,14 +876,8 @@ public class OmsBackendService extends BaseThemeService {
                                           File overlayFolder, ThemePrefs prefs) {
         OverlayFlavor type = overlay.flavors.get(typeName);
         if (type != null) {
-            String selectedFlavor = null;
-            for (Entry<String, String> entry : type.flavors.entrySet()) {
-                if (entry.getValue().equals(type.selected)) {
-                    selectedFlavor = entry.getKey();
-                    break;
-                }
-            }
-            if (selectedFlavor == null) return;
+            Log.d(TAG, "handleExtractType1Flavor, selected=" + type.selected);
+            if (type.selected == null) return;
             AssetManager am = themeContext.getAssets();
             try {
                 String of = "overlays/" + overlay.targetPackage + "/res";
@@ -893,7 +886,7 @@ public class OmsBackendService extends BaseThemeService {
                         for (String s : am.list(of + "/" + n)) {
                             if (s.equals(type.key + ".xml")) {
                                 AssetUtils.copyAsset(am, "overlays/" + overlay.targetPackage
-                                                + "/" + selectedFlavor,
+                                                + "/" + type.selected,
                                         overlayFolder.getAbsolutePath() + "/res/"
                                                 + n + "/" + type.key + ".xml");
                             }
