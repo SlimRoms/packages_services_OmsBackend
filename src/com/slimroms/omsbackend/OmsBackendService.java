@@ -425,7 +425,7 @@ public class OmsBackendService extends BaseThemeService {
                             AssetUtils.copyAssetFolder(themeContext.getAssets(), "overlays/"
                                             + overlay.targetPackage + "/" + type2.selected,
                                     overlayFolder.getAbsolutePath() + "/res");
-                            prefs.putString(overlay.targetPackage + "_type2", type2.selected);
+                            prefs.putString(overlay.targetPackage, type2.selected);
                         } else {
                             sb.append(", type2=null");
                         }
@@ -950,7 +950,7 @@ public class OmsBackendService extends BaseThemeService {
                         }
                     }
                 }
-                prefs.putString(overlay.targetPackage + "_" + typeName, type.selected);
+                prefs.putString(overlay.targetPackage, type.selected);
             } catch (Exception e) {
                 e.printStackTrace();
             }
