@@ -243,9 +243,9 @@ public class OmsBackendService extends BaseThemeService {
                                     + font, fontFile.getAbsolutePath());
 
                             try {
-                                Os.chmod(fontFile.getAbsolutePath(), 00777);
-                                Os.chmod(fontFile.getParent(), 00777);
-                                Os.chmod(fontFile.getParentFile().getParent(), 00777);
+                                Os.chmod(fontFile.getAbsolutePath(), 00755);
+                                Os.chmod(fontFile.getParent(), 00755);
+                                Os.chmod(fontFile.getParentFile().getParent(), 00755);
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }
@@ -271,9 +271,9 @@ public class OmsBackendService extends BaseThemeService {
                             parseBootanimation(themeContext, bootName, bootanimFile);
 
                             try {
-                                Os.chmod(bootanimFile.getAbsolutePath(), 00777);
-                                Os.chmod(bootanimFile.getParent(), 00777);
-                                Os.chmod(bootanimFile.getParentFile().getParent(), 00777);
+                                Os.chmod(bootanimFile.getAbsolutePath(), 00755);
+                                Os.chmod(bootanimFile.getParent(), 00755);
+                                Os.chmod(bootanimFile.getParentFile().getParent(), 00755);
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }

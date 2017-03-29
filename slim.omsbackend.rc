@@ -1,0 +1,7 @@
+on post-fs-data
+    # Add SlimThemeManager dir
+    mkdir /data/system/theme
+    chmod 755 /data/system/theme
+    chown system /data/system/theme
+    chgrp system /data/system/theme
+    restorecon /data/system/theme
