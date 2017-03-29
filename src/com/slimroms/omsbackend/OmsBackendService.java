@@ -165,8 +165,10 @@ public class OmsBackendService extends BaseThemeService {
                     String targetPackage = info.metaData.getString("target_package",
                             overlayInfo.targetPackageName);
                     boolean targetPackageInstalled;
+                    ApplicationInfo targetInfo = null;
                     try {
-                        getPackageManager().getApplicationInfo(targetPackage, 0);
+                        targetInfo =
+                                getPackageManager().getApplicationInfo(targetPackage, 0);
                         targetPackageInstalled = true;
                     }
                     catch (PackageManager.NameNotFoundException ex) {
@@ -176,10 +178,13 @@ public class OmsBackendService extends BaseThemeService {
                         overlay = new Overlay(getSystemUIOverlayName(targetPackage),
                                 targetPackage, targetPackageInstalled);
                     } else {
-                        overlay = new Overlay((String) info.loadLabel(getPackageManager()),
-                                targetPackage, targetPackageInstalled);
+                        String overlayName = (targetInfo != null)
+                                ? targetInfo.loadLabel(getPackageManager()).toString()
+                                : info.loadLabel(getPackageManager()).toString();
+                        overlay = new Overlay(overlayName, targetPackage, targetPackageInstalled);
                     }
                     if (overlay != null) {
+                        overlay.overlayPackage = overlayInfo.packageName;
                         overlay.isOverlayEnabled =
                                 (overlayInfo.state == OverlayInfo.STATE_APPROVED_ENABLED);
                         overlay.overlayVersion =
@@ -367,12 +372,11 @@ public class OmsBackendService extends BaseThemeService {
                         notifyInstallProgress(totalCount, ++index, overlay.overlayName);
 
                         // check if installed and latest
-                        String packageName = theme.packageName + "." + overlay.targetPackage;
-                        sb.append(", package=" + packageName);
+                        sb.append(", package=" + overlay.overlayPackage);
                         sb.append(", newVersion=" + theme.themeVersion);
                         try {
                             ApplicationInfo aInfo = getPackageManager().getApplicationInfo(
-                                    packageName, PackageManager.GET_META_DATA);
+                                    overlay.overlayPackage, PackageManager.GET_META_DATA);
                             if (aInfo.metaData != null) {
                                 String themeVersion =
                                         aInfo.metaData.getString("theme_version", "")
@@ -548,25 +552,24 @@ public class OmsBackendService extends BaseThemeService {
                     continue;
                 }
 
-                String packageName = overlay.themePackage + "." + overlay.targetPackage;
-                sb.append(", package=" + packageName);
+                sb.append(", package=" + overlay.overlayPackage);
                 Log.d(TAG, sb.toString());
                 List<OverlayInfo> ois = overlayInfos.get(getTargetPackage(overlay.targetPackage));
                 if (ois != null) {
                     for (OverlayInfo oi : ois) {
-                        if (oi.packageName.equals(packageName)) {
+                        if (oi.packageName.equals(overlay.overlayPackage)) {
                             notifyUninstallProgress(overlays.size(), overlays.indexOf(overlay),
                                     overlay.overlayName);
-                            mOverlayManager.setEnabled(packageName,
+                            mOverlayManager.setEnabled(overlay.overlayPackage,
                                     false, UserHandle.USER_CURRENT, false);
-                            if (mPMUtils.uninstallPackage(packageName)) {
+                            if (mPMUtils.uninstallPackage(overlay.overlayPackage)) {
                                 Log.d(TAG, "Complete");
                             } else {
                                 Log.e(TAG, "Failed");
                             }
                             break;
                         }
-                        Log.e(TAG, "No package name match found for " + packageName);
+                        Log.e(TAG, "No package name match found for " + overlay.overlayPackage);
                     }
                 } else {
                     Log.d(TAG, "No installed overlays found for target package "
@@ -748,11 +751,12 @@ public class OmsBackendService extends BaseThemeService {
                 }
             }
             if (overlay != null) {
+                overlay.overlayPackage = themeContext.getPackageName() + "."
+                        + overlay.targetPackage;
                 List<OverlayInfo> ois = overlays.get(getTargetPackage(overlay.targetPackage));
                 if (ois != null) {
                     for (OverlayInfo oi : ois) {
-                        if (oi.packageName.equals(themeContext.getPackageName() +
-                                "." + overlay.targetPackage)) {
+                        if (oi.packageName.equals(overlay.overlayPackage)) {
                             overlay.checked = (oi.state == OverlayInfo.STATE_APPROVED_ENABLED);
                             overlay.isOverlayEnabled =
                                     (oi.state == OverlayInfo.STATE_APPROVED_ENABLED
