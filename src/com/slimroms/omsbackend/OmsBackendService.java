@@ -760,8 +760,7 @@ public class OmsBackendService extends BaseThemeService {
                             overlay.isOverlayInstalled = true;
                             overlay.checked = (oi.state == OverlayInfo.STATE_APPROVED_ENABLED);
                             overlay.isOverlayEnabled =
-                                    (oi.state == OverlayInfo.STATE_APPROVED_ENABLED
-                                        || oi.state == OverlayInfo.STATE_APPROVED_DISABLED);
+                                    (oi.state == OverlayInfo.STATE_APPROVED_ENABLED);
                             break;
                         }
                     }
