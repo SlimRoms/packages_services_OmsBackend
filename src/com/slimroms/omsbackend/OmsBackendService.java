@@ -757,6 +757,7 @@ public class OmsBackendService extends BaseThemeService {
                 if (ois != null) {
                     for (OverlayInfo oi : ois) {
                         if (oi.packageName.equals(overlay.overlayPackage)) {
+                            overlay.isOverlayInstalled = true;
                             overlay.checked = (oi.state == OverlayInfo.STATE_APPROVED_ENABLED);
                             overlay.isOverlayEnabled =
                                     (oi.state == OverlayInfo.STATE_APPROVED_ENABLED
