@@ -745,7 +745,10 @@ public class OmsBackendService extends BaseThemeService {
             } else {
                 try {
                     ApplicationInfo info = getPackageManager().getApplicationInfo(p, 0);
-                    overlay = new Overlay((String) info.loadLabel(getPackageManager()), p, true);
+                    // don't show frozen apps
+                    if (info.enabled) {
+                        overlay = new Overlay((String) info.loadLabel(getPackageManager()), p, true);
+                    }
                 } catch (PackageManager.NameNotFoundException e) {
                     //overlay = new Overlay(p, p, false);
                 }
