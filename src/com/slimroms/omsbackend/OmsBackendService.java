@@ -151,6 +151,7 @@ public class OmsBackendService extends BaseThemeService {
                         continue;
                     Overlay overlay = null;
                     ApplicationInfo info = null;
+                    ApplicationInfo targetInfo = null;
                     try {
                         info = getPackageManager().getApplicationInfo(overlayInfo.packageName,
                                 PackageManager.GET_META_DATA);
@@ -163,20 +164,18 @@ public class OmsBackendService extends BaseThemeService {
                     }
                     String targetPackage = info.metaData.getString("target_package",
                             overlayInfo.targetPackageName);
-                    boolean targetPackageInstalled;
                     try {
-                        getPackageManager().getApplicationInfo(targetPackage, 0);
-                        targetPackageInstalled = true;
-                    }
-                    catch (PackageManager.NameNotFoundException ex) {
-                        targetPackageInstalled = false;
+                        targetInfo = getPackageManager().getApplicationInfo(targetPackage, 0);
+                    } catch (PackageManager.NameNotFoundException ex) {
                     }
                     if (isSystemUIOverlay(targetPackage)) {
                         overlay = new Overlay(getSystemUIOverlayName(targetPackage),
-                                targetPackage, targetPackageInstalled);
+                                targetPackage, targetInfo != null);
                     } else {
-                        overlay = new Overlay((String) info.loadLabel(getPackageManager()),
-                                targetPackage, targetPackageInstalled);
+                        overlay = new Overlay(targetInfo != null ?
+                                (String) targetInfo.loadLabel(getPackageManager()) :
+                                (String) info.loadLabel(getPackageManager()),
+                                targetPackage, targetInfo != null);
                     }
                     if (overlay != null) {
                         overlay.isOverlayEnabled =
