@@ -34,6 +34,8 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.os.UserHandle;
@@ -73,6 +75,7 @@ public class OmsBackendService extends BaseThemeService {
 
     private PackageManagerUtils mPMUtils;
     private IOverlayManager mOverlayManager;
+    private ConnectivityManager mConnectivityManager;
 
     private Map<String, List<OverlayInfo>> mOverlays = new HashMap<>();
 
@@ -85,6 +88,7 @@ public class OmsBackendService extends BaseThemeService {
         mSystemUIPackages.put("com.android.systemui.tiles", "System UI QS Tile Icons");
 
         mOverlayManager = IOverlayManager.Stub.asInterface(ServiceManager.getService("overlay"));
+        mConnectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
     }
 
     @Override
@@ -918,17 +922,8 @@ public class OmsBackendService extends BaseThemeService {
     }
 
     private boolean isOnline() {
-        final Runtime runtime = Runtime.getRuntime();
-        try {
-            final Process ipProcess = runtime.exec("/system/bin/ping -c 1 8.8.8.8");
-            final int exitValue = ipProcess.waitFor();
-            return (exitValue == 0);
-        }
-        catch (IOException | InterruptedException e) {
-            e.printStackTrace();
-        }
-
-        return false;
+        final NetworkInfo ni = mConnectivityManager.getActiveNetworkInfo();
+        return (ni != null && ni.isConnected());
     }
 
     private void sendFinishedBroadcast() {
