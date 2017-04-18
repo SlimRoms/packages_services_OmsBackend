@@ -111,7 +111,7 @@ public class OmsBackendService extends BaseThemeService {
                 List<ApplicationInfo> apps =
                         pm.getInstalledApplications(PackageManager.GET_META_DATA);
                 for (ApplicationInfo info : apps) {
-                    if (info.metaData == null) {
+                    if (!info.enabled || info.metaData == null) {
                         continue;
                     }
                     String name = info.metaData.getString("Substratum_Name");
