@@ -92,6 +92,12 @@ public class OmsBackendService extends BaseThemeService {
     }
 
     @Override
+    public void onDestroy() {
+        stopWakeLock();
+        super.onDestroy();
+    }
+
+    @Override
     public BaseThemeHelper getThemeHelper() {
         return new Helper();
     }
@@ -354,6 +360,7 @@ public class OmsBackendService extends BaseThemeService {
             if (mPMUtils == null) {
                 mPMUtils = new PackageManagerUtils(getBaseContext());
             }
+            startWakeLock();
             try {
                 notifyInstallProgress(totalCount, 0, null);
                 File themeCache = setupCache(theme.packageName);
@@ -505,6 +512,8 @@ public class OmsBackendService extends BaseThemeService {
                 return true;
             } catch (PackageManager.NameNotFoundException e) {
                 e.printStackTrace();
+            } finally {
+                stopWakeLock();
             }
             return false;
         }
@@ -522,67 +531,71 @@ public class OmsBackendService extends BaseThemeService {
             if (mPMUtils == null) {
                 mPMUtils = new PackageManagerUtils(getBaseContext());
             }
-
-            notifyUninstallProgress(overlays.size(), 0, null);
-
-            Map<String, List<OverlayInfo>> overlayInfos = new HashMap<>();
+            startWakeLock();
             try {
-                overlayInfos = mOverlayManager.getAllOverlays(UserHandle.USER_CURRENT);
-            } catch (RemoteException e) {
-                e.printStackTrace();
-            }
+                notifyUninstallProgress(overlays.size(), 0, null);
 
-            final StringBuilder sb = new StringBuilder();
-            for (Overlay overlay : overlays) {
-                sb.setLength(0);
-                sb.append("Uninstalling overlay");
-                sb.append(" name=" + overlay.overlayName);
-
-                // bootanimation
-                if (overlay.targetPackage.equals(OverlayGroup.BOOTANIMATIONS)) {
-                    notifyUninstallProgress(overlays.size(), overlays.indexOf(overlay),
-                            overlay.overlayName);
-                    sb.append(", type=bootanimation");
-                    final File bootanimBinary = new File(BOOTANIMATION_FILE);
-                    final File bootanimMetadata = new File(BOOTANIMATION_METADATA);
-                    if (bootanimBinary.exists()) {
-                        bootanimBinary.delete();
-                    }
-                    if (bootanimMetadata.exists()) {
-                        bootanimMetadata.delete();
-                    }
-                    Log.d(TAG, sb.toString());
-                    Log.d(TAG, "Complete");
-                    continue;
+                Map<String, List<OverlayInfo>> overlayInfos = new HashMap<>();
+                try {
+                    overlayInfos = mOverlayManager.getAllOverlays(UserHandle.USER_CURRENT);
+                } catch (RemoteException e) {
+                    e.printStackTrace();
                 }
 
-                sb.append(", package=" + overlay.overlayPackage);
-                Log.d(TAG, sb.toString());
-                List<OverlayInfo> ois = overlayInfos.get(getTargetPackage(overlay.targetPackage));
-                if (ois != null) {
-                    for (OverlayInfo oi : ois) {
-                        if (oi.packageName.equals(overlay.overlayPackage)) {
-                            notifyUninstallProgress(overlays.size(), overlays.indexOf(overlay),
-                                    overlay.overlayName);
-                            mOverlayManager.setEnabled(overlay.overlayPackage,
-                                    false, UserHandle.USER_CURRENT, false);
-                            if (mPMUtils.uninstallPackage(overlay.overlayPackage)) {
-                                Log.d(TAG, "Complete");
-                            } else {
-                                Log.e(TAG, "Failed");
-                            }
-                            break;
+                final StringBuilder sb = new StringBuilder();
+                for (Overlay overlay : overlays) {
+                    sb.setLength(0);
+                    sb.append("Uninstalling overlay");
+                    sb.append(" name=" + overlay.overlayName);
+
+                    // bootanimation
+                    if (overlay.targetPackage.equals(OverlayGroup.BOOTANIMATIONS)) {
+                        notifyUninstallProgress(overlays.size(), overlays.indexOf(overlay),
+                                overlay.overlayName);
+                        sb.append(", type=bootanimation");
+                        final File bootanimBinary = new File(BOOTANIMATION_FILE);
+                        final File bootanimMetadata = new File(BOOTANIMATION_METADATA);
+                        if (bootanimBinary.exists()) {
+                            bootanimBinary.delete();
                         }
-                        Log.e(TAG, "No package name match found for " + overlay.overlayPackage);
+                        if (bootanimMetadata.exists()) {
+                            bootanimMetadata.delete();
+                        }
+                        Log.d(TAG, sb.toString());
+                        Log.d(TAG, "Complete");
+                        continue;
                     }
-                } else {
-                    Log.d(TAG, "No installed overlays found for target package "
-                            + getTargetPackage(overlay.targetPackage));
+
+                    sb.append(", package=" + overlay.overlayPackage);
+                    Log.d(TAG, sb.toString());
+                    List<OverlayInfo> ois = overlayInfos.get(getTargetPackage(overlay.targetPackage));
+                    if (ois != null) {
+                        for (OverlayInfo oi : ois) {
+                            if (oi.packageName.equals(overlay.overlayPackage)) {
+                                notifyUninstallProgress(overlays.size(), overlays.indexOf(overlay),
+                                        overlay.overlayName);
+                                mOverlayManager.setEnabled(overlay.overlayPackage,
+                                        false, UserHandle.USER_CURRENT, false);
+                                if (mPMUtils.uninstallPackage(overlay.overlayPackage)) {
+                                    Log.d(TAG, "Complete");
+                                } else {
+                                    Log.e(TAG, "Failed");
+                                }
+                                break;
+                            }
+                            Log.e(TAG, "No package name match found for " + overlay.overlayPackage);
+                        }
+                    } else {
+                        Log.d(TAG, "No installed overlays found for target package "
+                                + getTargetPackage(overlay.targetPackage));
+                    }
                 }
+                sendFinishedBroadcast();
+                notifyUninstallComplete();
+                return true;
+            } finally {
+                stopWakeLock();
             }
-            sendFinishedBroadcast();
-            notifyUninstallComplete();
-            return true;
         }
 
         @Override
