@@ -768,6 +768,16 @@ public class OmsBackendService extends BaseThemeService {
                             overlay.checked = (oi.state == OverlayInfo.STATE_APPROVED_ENABLED);
                             overlay.isOverlayEnabled =
                                     (oi.state == OverlayInfo.STATE_APPROVED_ENABLED);
+
+                            try {
+                                ApplicationInfo oai = getPackageManager()
+                                        .getApplicationInfo(overlay.overlayPackage,
+                                                PackageManager.GET_META_DATA);
+                                overlay.overlayVersion = oai.metaData
+                                        .getString("theme_version", "").replace("v=", "");
+                            } catch (PackageManager.NameNotFoundException ex) {
+                                // ignore
+                            }
                             break;
                         }
                     }
