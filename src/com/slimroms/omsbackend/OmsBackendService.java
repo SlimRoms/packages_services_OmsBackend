@@ -369,6 +369,14 @@ public class OmsBackendService extends BaseThemeService {
                         Log.d(TAG, "selectedStyle=" + overlays.selectedStyle);
                         prefs.putString("selectedStyle", overlays.selectedStyle);
                     }
+                    // put system overlay to the end of the list
+                    // to prevent possible quirks
+                    Overlay systemOverlay = overlays.findByTargetPackage("android");
+                    if (systemOverlay != null) {
+                        overlays.overlays.remove(systemOverlay);
+                        overlays.overlays.add(systemOverlay);
+                    }
+
                     for (Overlay overlay : overlays.overlays) {
                         if (!overlay.checked) continue;
                         sb.setLength(0);
@@ -514,6 +522,14 @@ public class OmsBackendService extends BaseThemeService {
 
         @Override
         public boolean uninstallOverlays(OverlayGroup group) throws RemoteException {
+            // put system overlay to the end of the list
+            // to prevent possible quirks
+            Overlay systemOverlay = group.findByTargetPackage("android");
+            if (systemOverlay != null) {
+                group.overlays.remove(systemOverlay);
+                group.overlays.add(systemOverlay);
+            }
+
             List<Overlay> overlays = new ArrayList<>();
             for (Overlay overlay : group.overlays) {
                 if (overlay.checked) {
