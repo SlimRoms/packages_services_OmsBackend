@@ -92,12 +92,6 @@ public class OmsBackendService extends BaseThemeService {
     }
 
     @Override
-    public void onDestroy() {
-        stopWakeLock();
-        super.onDestroy();
-    }
-
-    @Override
     public BaseThemeHelper getThemeHelper() {
         return new Helper();
     }
