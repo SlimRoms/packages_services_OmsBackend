@@ -74,6 +74,9 @@ import java.io.*;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.zip.*;
 
@@ -83,6 +86,11 @@ import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
+
+import javax.crypto.Cipher;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
 import static org.apache.commons.io.FileUtils.copyInputStreamToFile;
 
@@ -308,13 +316,22 @@ public class OmsBackendService extends BaseThemeService {
             PackageManager pm = getPackageManager();
             if (pm != null) {
                 ThemePrefs prefs = getThemePrefs(theme.packageName + "_prefs");
+                Cipher cipher = null;
+                try {
+                    cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+                    cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(theme.decryptionKey, "AES"),
+                            new IvParameterSpec(theme.ivKey));
+                } catch (NoSuchAlgorithmException|NoSuchPaddingException|InvalidAlgorithmParameterException|InvalidKeyException e) {
+                    e.printStackTrace();
+                }
+
                 try {
                     Context themeContext =
                             getBaseContext().createPackageContext(theme.packageName, 0);
                     String[] olays = themeContext.getAssets().list("overlays");
                     if (olays.length > 0) {
                         info.groups.put(OverlayGroup.OVERLAYS,
-                                getOverlays(themeContext, olays, prefs));
+                                getOverlays(themeContext, olays, prefs, cipher));
                     }
                     File themeCache = setupCache(theme.packageName);
                     String[] fonts = themeContext.getAssets().list("fonts");
@@ -354,7 +371,7 @@ public class OmsBackendService extends BaseThemeService {
                                 bootanimFile.delete();
                             }
 
-                            parseBootanimation(themeContext, bootName, bootanimFile);
+                            parseBootanimation(themeContext, bootName, bootanimFile, cipher);
 
                             try {
                                 Shell.chmod(bootanimFile.getAbsolutePath(), 744);
@@ -436,6 +453,15 @@ public class OmsBackendService extends BaseThemeService {
                 Context themeContext = getBaseContext().createPackageContext(theme.packageName, 0);
                 StringBuilder sb = new StringBuilder();
 
+                Cipher cipher = null;
+                try {
+                    cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+                    cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(theme.decryptionKey, "AES"),
+                            new IvParameterSpec(theme.ivKey));
+                } catch (NoSuchAlgorithmException|NoSuchPaddingException|InvalidAlgorithmParameterException|InvalidKeyException e) {
+                    e.printStackTrace();
+                }
+
                 // handle overlays first
                 OverlayGroup overlays = info.groups.get(OverlayGroup.OVERLAYS);
                 if (overlays != null) {
@@ -489,23 +515,35 @@ public class OmsBackendService extends BaseThemeService {
                         if (overlayFolder.exists()) {
                             deleteContents(overlayFolder);
                         }
-                        AssetUtils.copyAssetFolder(themeContext.getAssets(), "overlays/"
-                                        + overlay.targetPackage + "/res",
-                                overlayFolder.getAbsolutePath() + "/res");
-                        if (!TextUtils.isEmpty(overlays.selectedStyle)) {
+                        try {
                             AssetUtils.copyAssetFolder(themeContext.getAssets(), "overlays/"
-                                            + overlay.targetPackage + "/" + overlays.selectedStyle,
-                                    overlayFolder.getAbsolutePath() + "/res");
+                                            + overlay.targetPackage + "/res",
+                                    overlayFolder.getAbsolutePath() + "/res", cipher);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                        try {
+                            if (!TextUtils.isEmpty(overlays.selectedStyle)) {
+                                AssetUtils.copyAssetFolder(themeContext.getAssets(), "overlays/"
+                                                + overlay.targetPackage + "/" + overlays.selectedStyle,
+                                        overlayFolder.getAbsolutePath() + "/res", cipher);
+                            }
+                        } catch (IOException e) {
+                            e.printStackTrace();
                         }
 
                         // handle type 2 overlay if non-default selected
                         OverlayFlavor type2 = overlay.flavors.get("type2");
                         if (type2 != null) {
-                            sb.append(", type2=" + type2.selected);
-                            AssetUtils.copyAssetFolder(themeContext.getAssets(), "overlays/"
-                                            + overlay.targetPackage + "/" + type2.selected,
-                                    overlayFolder.getAbsolutePath() + "/res");
-                            prefs.putTypeSelection(overlay.targetPackage, "type2", type2.selected);
+                            try {
+                                sb.append(", type2=" + type2.selected);
+                                AssetUtils.copyAssetFolder(themeContext.getAssets(), "overlays/"
+                                                + overlay.targetPackage + "/" + type2.selected,
+                                        overlayFolder.getAbsolutePath() + "/res", cipher);
+                                    prefs.putTypeSelection(overlay.targetPackage, "type2", type2.selected);
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
                         } else {
                             sb.append(", type2=null");
                         }
@@ -519,11 +557,11 @@ public class OmsBackendService extends BaseThemeService {
                         Log.d(TAG, sb.toString());
                         // handle type1 last
                         handleExtractType1Flavor(
-                                themeContext, overlay, "type1a", overlayFolder, prefs);
+                                themeContext, overlay, "type1a", overlayFolder, prefs, cipher);
                         handleExtractType1Flavor(
-                                themeContext, overlay, "type1b", overlayFolder, prefs);
+                                themeContext, overlay, "type1b", overlayFolder, prefs, cipher);
                         handleExtractType1Flavor(
-                                themeContext, overlay, "type1c", overlayFolder, prefs);
+                                themeContext, overlay, "type1c", overlayFolder, prefs, cipher);
 
                         PackageInfo appInfo =
                                 getPackageManager().getPackageInfo(overlay.targetPackage, 0);
@@ -564,7 +602,7 @@ public class OmsBackendService extends BaseThemeService {
                                 bootAnimCache.renameTo(bootanimBinary);
                             } else {
                                 parseBootanimation(themeContext, overlay.overlayName,
-                                        bootanimBinary);
+                                        bootanimBinary, cipher);
                             }
                             // chmod 644
                             try {
@@ -979,7 +1017,7 @@ public class OmsBackendService extends BaseThemeService {
     }
 
     private OverlayGroup getOverlays(Context themeContext,
-            String[] packages, ThemePrefs prefs) {
+            String[] packages, ThemePrefs prefs, Cipher cipher) {
         OverlayGroup group = new OverlayGroup();
 
         Map<String, List<OverlayInfo>> overlays = new HashMap<>();
@@ -1030,7 +1068,7 @@ public class OmsBackendService extends BaseThemeService {
                         }
                     }
                 }
-                loadOverlayFlavors(themeContext, overlay);
+                loadOverlayFlavors(themeContext, overlay, cipher);
                 for (OverlayFlavor flavor : overlay.flavors.values()) {
                     String sel = prefs.getTypeSelection(overlay.targetPackage, flavor.key);
                     if (!TextUtils.isEmpty(sel)) {
@@ -1040,7 +1078,7 @@ public class OmsBackendService extends BaseThemeService {
                 group.overlays.add(overlay);
             }
         }
-        getThemeStyles(themeContext, group);
+        getThemeStyles(themeContext, group, cipher);
         group.sort();
         return group;
     }
@@ -1052,7 +1090,7 @@ public class OmsBackendService extends BaseThemeService {
         return targetPackage;
     }
 
-    private void loadOverlayFlavors(Context themeContext, Overlay overlay) {
+    private void loadOverlayFlavors(Context themeContext, Overlay overlay, Cipher cipher) {
         String[] types = null;
         try {
             types = themeContext.getAssets().list("overlays/" + overlay.targetPackage);
@@ -1075,8 +1113,8 @@ public class OmsBackendService extends BaseThemeService {
                             continue;
                         }
                         try {
-                            String flavorName = IOUtils.toString(themeContext.getAssets().open(
-                                    "overlays/" + overlay.targetPackage + "/" + flavor),
+                            String flavorName = IOUtils.toString(AssetUtils.getAsset(themeContext.getAssets(),
+                                    "overlays/" + overlay.targetPackage + "/" + flavor, cipher),
                                             Charset.defaultCharset());
                             flavorMap.put(flavor, new OverlayFlavor(flavor, flavorName));
                         } catch (IOException e) {
@@ -1112,12 +1150,12 @@ public class OmsBackendService extends BaseThemeService {
     }
 
 
-    private void getThemeStyles(Context themeContext, OverlayGroup group) {
+    private void getThemeStyles(Context themeContext, OverlayGroup group, Cipher cipher) {
         String[] types = null;
         try {
             types = themeContext.getAssets().list("overlays/android");
-            String def = IOUtils.toString(themeContext.getAssets().open("overlays/android/"
-                    + "type3"), Charset.defaultCharset());
+            String def = IOUtils.toString(AssetUtils.getAsset(themeContext.getAssets(), "overlays/android/"
+                    + "type3", cipher), Charset.defaultCharset());
             boolean hasDefault = false;
             for (String type : types) {
                 if (type.equals("res")) {
@@ -1164,7 +1202,7 @@ public class OmsBackendService extends BaseThemeService {
     }
 
     private void handleExtractType1Flavor(Context themeContext, Overlay overlay, String typeName,
-                                          File overlayFolder, ThemePrefs prefs) {
+                                          File overlayFolder, ThemePrefs prefs, Cipher cipher) {
         OverlayFlavor type = overlay.flavors.get(typeName);
         if (type != null) {
             Log.d(TAG, "handleExtractType1Flavor, selected=" + type.selected);
@@ -1179,7 +1217,7 @@ public class OmsBackendService extends BaseThemeService {
                                 AssetUtils.copyAsset(am, "overlays/" + overlay.targetPackage
                                                 + "/" + type.selected,
                                         overlayFolder.getAbsolutePath() + "/res/"
-                                                + n + "/" + type.key + ".xml");
+                                                + n + "/" + type.key + ".xml", cipher);
                             }
                         }
                     }
@@ -1203,15 +1241,19 @@ public class OmsBackendService extends BaseThemeService {
         sendBroadcast(intent);
     }
 
-    private boolean parseBootanimation(Context themeContext, String bootAnimName, File bootanimFile) {
+    private boolean parseBootanimation(Context themeContext, String bootAnimName, File bootanimFile, Cipher cipher) {
         File bootanimCacheFile = new File(bootanimFile.getParent(), "__" + bootanimFile.getName());
         if (bootanimCacheFile.exists()) {
             bootanimCacheFile.delete();
         }
 
         // extract the asset first
-        AssetUtils.copyAsset(themeContext.getAssets(), "bootanimation/"
-                + bootAnimName + ".zip", bootanimCacheFile.getAbsolutePath());
+        try {
+            AssetUtils.copyAsset(themeContext.getAssets(), "bootanimation/"
+                    + bootAnimName + ".zip", bootanimCacheFile.getAbsolutePath(), cipher);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
         try {
             // check if it's a flashable zip
