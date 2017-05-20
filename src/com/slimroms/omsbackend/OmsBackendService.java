@@ -24,19 +24,13 @@
 package com.slimroms.omsbackend;
 
 import android.annotation.SuppressLint;
-import android.app.ActivityManagerNative;
-import android.app.IActivityManager;
 import android.content.Context;
 import android.content.Intent;
-import android.content.om.IOverlayManager;
-import android.content.om.OverlayInfo;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.os.RemoteException;
-import android.os.ServiceManager;
-import android.os.UserHandle;
 import android.system.Os;
 import android.text.TextUtils;
 import android.util.DisplayMetrics;
@@ -71,11 +65,6 @@ public class OmsBackendService extends BaseThemeService {
 
     private HashMap<String, String> mSystemUIPackages = new HashMap<>();
 
-    private PackageManagerUtils mPMUtils;
-    private IOverlayManager mOverlayManager;
-
-    private Map<String, List<OverlayInfo>> mOverlays = new HashMap<>();
-
     @Override
     public void onCreate() {
         super.onCreate();
@@ -83,8 +72,6 @@ public class OmsBackendService extends BaseThemeService {
         mSystemUIPackages.put("com.android.systemui.navbars", "System UI Navigation");
         mSystemUIPackages.put("com.android.systemui.statusbars", "System UI Status Bar Icons");
         mSystemUIPackages.put("com.android.systemui.tiles", "System UI QS Tile Icons");
-
-        mOverlayManager = IOverlayManager.Stub.asInterface(ServiceManager.getService("overlay"));
     }
 
     @Override
@@ -139,63 +126,6 @@ public class OmsBackendService extends BaseThemeService {
 
         @Override
         public void getInstalledOverlays(OverlayGroup group) throws RemoteException {
-            Map<String, List<OverlayInfo>> overlayInfos = new HashMap<>();
-            try {
-                overlayInfos = mOverlayManager.getAllOverlays(UserHandle.USER_CURRENT);
-            } catch (RemoteException e) {
-                e.printStackTrace();
-            }
-
-            for (List<OverlayInfo> overlays : overlayInfos.values()) {
-                for (OverlayInfo overlayInfo : overlays) {
-                    if (overlayInfo.state != OverlayInfo.STATE_APPROVED_ENABLED)
-                        continue;
-                    Overlay overlay = null;
-                    ApplicationInfo info = null;
-                    try {
-                        info = getPackageManager().getApplicationInfo(overlayInfo.packageName,
-                                PackageManager.GET_META_DATA);
-                    } catch (PackageManager.NameNotFoundException e) {
-                        continue;
-                    }
-                    if (info.metaData == null) {
-                        Log.e(TAG, "overlay is missing metaData");
-                        continue;
-                    }
-                    String targetPackage = info.metaData.getString("target_package",
-                            overlayInfo.targetPackageName);
-                    boolean targetPackageInstalled;
-                    try {
-                        getPackageManager().getApplicationInfo(targetPackage, 0);
-                        targetPackageInstalled = true;
-                    }
-                    catch (PackageManager.NameNotFoundException ex) {
-                        targetPackageInstalled = false;
-                    }
-                    if (isSystemUIOverlay(targetPackage)) {
-                        overlay = new Overlay(getSystemUIOverlayName(targetPackage),
-                                targetPackage, targetPackageInstalled);
-                    } else {
-                        overlay = new Overlay((String) info.loadLabel(getPackageManager()),
-                                targetPackage, targetPackageInstalled);
-                    }
-                    if (overlay != null) {
-                        overlay.isOverlayEnabled =
-                                (overlayInfo.state == OverlayInfo.STATE_APPROVED_ENABLED);
-                        overlay.overlayVersion =
-                                info.metaData.getString("theme_version", "").replace("v=", "");
-                        overlay.themePackage = info.metaData.getString("theme_package", null);
-                        if (overlay.themePackage == null) {
-                            // fallback substratum compatibility
-                            overlay.themePackage =
-                                    String.format("%s (Substratum)",
-                                            info.metaData.getString("Substratum_Parent", null));
-                        }
-                        overlay.isOverlayInstalled = true;
-                        group.overlays.add(overlay);
-                    }
-                }
-            }
 
             // bootanimation
             final File bootanimBinary = new File(BOOTANIMATION_FILE);
@@ -342,9 +272,6 @@ public class OmsBackendService extends BaseThemeService {
             }
             int index = 0;
 
-            if (mPMUtils == null) {
-                mPMUtils = new PackageManagerUtils(getBaseContext());
-            }
             try {
                 notifyInstallProgress(totalCount, 0, null);
                 File themeCache = setupCache(theme.packageName);
@@ -511,18 +438,8 @@ public class OmsBackendService extends BaseThemeService {
             }
             if (overlays == null || overlays.isEmpty()) return false;
 
-            if (mPMUtils == null) {
-                mPMUtils = new PackageManagerUtils(getBaseContext());
-            }
 
             notifyUninstallProgress(overlays.size(), 0, null);
-
-            Map<String, List<OverlayInfo>> overlayInfos = new HashMap<>();
-            try {
-                overlayInfos = mOverlayManager.getAllOverlays(UserHandle.USER_CURRENT);
-            } catch (RemoteException e) {
-                e.printStackTrace();
-            }
 
             final StringBuilder sb = new StringBuilder();
             for (Overlay overlay : overlays) {
@@ -551,7 +468,7 @@ public class OmsBackendService extends BaseThemeService {
                 String packageName = overlay.themePackage + "." + overlay.targetPackage;
                 sb.append(", package=" + packageName);
                 Log.d(TAG, sb.toString());
-                List<OverlayInfo> ois = overlayInfos.get(getTargetPackage(overlay.targetPackage));
+                /*List<OverlayInfo> ois = overlayInfos.get(getTargetPackage(overlay.targetPackage));
                 if (ois != null) {
                     for (OverlayInfo oi : ois) {
                         if (oi.packageName.equals(packageName)) {
@@ -571,7 +488,7 @@ public class OmsBackendService extends BaseThemeService {
                 } else {
                     Log.d(TAG, "No installed overlays found for target package "
                             + getTargetPackage(overlay.targetPackage));
-                }
+                }*/
             }
             sendFinishedBroadcast();
             notifyUninstallComplete();
@@ -585,7 +502,7 @@ public class OmsBackendService extends BaseThemeService {
 
         @Override
         public void reboot() throws RemoteException {
-            ActivityManagerNative.getDefault().restart();
+            //ActivityManagerNative.getDefault().restart();
         }
     }
 
@@ -697,7 +614,7 @@ public class OmsBackendService extends BaseThemeService {
 
     private void installAndEnable(String apk, String packageName) {
         try {
-            if (mPMUtils.installPackage(apk)) {
+            /*if (mPMUtils.installPackage(apk)) {
                 OverlayInfo info = null;
                 while (info == null) {
                     try {
@@ -717,7 +634,7 @@ public class OmsBackendService extends BaseThemeService {
                 }
             } else {
                 Log.e(TAG, "Failed to install package " + apk);
-            }
+            }*/
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -727,12 +644,12 @@ public class OmsBackendService extends BaseThemeService {
             String[] packages, ThemePrefs prefs) {
         OverlayGroup group = new OverlayGroup();
 
-        Map<String, List<OverlayInfo>> overlays = new HashMap<>();
-        try {
-            overlays = mOverlayManager.getAllOverlays(UserHandle.USER_CURRENT);
-        } catch (RemoteException e) {
-            e.printStackTrace();
-        }
+        //Map<String, List<OverlayInfo>> overlays = new HashMap<>();
+        //try {
+          //  overlays = mOverlayManager.getAllOverlays(UserHandle.USER_CURRENT);
+       // } catch (RemoteException e) {
+         //   e.printStackTrace();
+        //}
         group.selectedStyle = prefs.getString("selectedStyle", "");
 
         for (String p : packages) {
@@ -748,19 +665,19 @@ public class OmsBackendService extends BaseThemeService {
                 }
             }
             if (overlay != null) {
-                List<OverlayInfo> ois = overlays.get(getTargetPackage(overlay.targetPackage));
-                if (ois != null) {
-                    for (OverlayInfo oi : ois) {
-                        if (oi.packageName.equals(themeContext.getPackageName() +
-                                "." + overlay.targetPackage)) {
-                            overlay.checked = (oi.state == OverlayInfo.STATE_APPROVED_ENABLED);
-                            overlay.isOverlayEnabled =
-                                    (oi.state == OverlayInfo.STATE_APPROVED_ENABLED
-                                        || oi.state == OverlayInfo.STATE_APPROVED_DISABLED);
-                            break;
-                        }
-                    }
-                }
+                //List<OverlayInfo> ois = overlays.get(getTargetPackage(overlay.targetPackage));
+                //if (ois != null) {
+                  //  for (OverlayInfo oi : ois) {
+                    //    if (oi.packageName.equals(themeContext.getPackageName() +
+                      //          "." + overlay.targetPackage)) {
+                        //    overlay.checked = (oi.state == OverlayInfo.STATE_APPROVED_ENABLED);
+                          //  overlay.isOverlayEnabled =
+                            //        (oi.state == OverlayInfo.STATE_APPROVED_ENABLED
+                              //          || oi.state == OverlayInfo.STATE_APPROVED_DISABLED);
+                            //break;
+                        //}
+                    //}
+                //}
                 loadOverlayFlavors(themeContext, overlay);
                 for (OverlayFlavor flavor : overlay.flavors.values()) {
                     String sel = prefs.getString(overlay.targetPackage + "_" + flavor.key, "");
@@ -985,7 +902,6 @@ public class OmsBackendService extends BaseThemeService {
     /**
      * Scale the boot animation to better fit the device by editing the desc.txt found
      * in the bootanimation.zip
-     * @param context Context to use for getting an instance of the WindowManager
      * @param input InputStream of the original bootanimation.zip
      * @param dst Path to store the newly created bootanimation.zip
      * @throws IOException
