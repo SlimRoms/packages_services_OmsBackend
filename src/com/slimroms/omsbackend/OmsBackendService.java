@@ -491,8 +491,6 @@ public class OmsBackendService extends BaseThemeService {
                                 "/overlays/" + theme.packageName + "." + overlay.targetPackage +
                                 ".apk", theme.packageName + "." + overlay.targetPackage);
                     }
-                    // Housekeeping: cleanup cache
-                    prefs.removeFile();
                 }
 
                 // now for the bootanimation
@@ -886,15 +884,21 @@ public class OmsBackendService extends BaseThemeService {
         if (types != null) {
             Map<String, OverlayFlavor> flavorMap = new HashMap<>();
             for (String flavor : types) {
+                if (flavor.endsWith(".enc")) {
+                    flavor = flavor.substring(0, flavor.lastIndexOf("."));
+                }
                 if (flavor.contains("res")
                         || flavor.contains("type3")) {
                     continue;
                 }
                 if (flavor.startsWith("type")) {
                     if (!flavor.contains("_")) {
+                        if (!isValidFlavor(flavor)) {
+                            continue;
+                        }
                         try {
                             String flavorName = IOUtils.toString(AssetUtils.getAsset(themeContext.getAssets(),
-                                    "overlays/" + overlay.targetPackage + "/" + flavor, cipher),
+                                    "overlays/" + overlay.targetPackage + "/" + flavor + ".enc", cipher),
                                             Charset.defaultCharset());
                             flavorMap.put(flavor, new OverlayFlavor(flavor, flavorName));
                         } catch (IOException e) {
@@ -906,7 +910,12 @@ public class OmsBackendService extends BaseThemeService {
                             flavorName = flavorName.substring(0, flavorName.indexOf("."));
                         }
                         String key = flavor.substring(0, flavor.indexOf("_"));
-                        if (flavorMap.containsKey(key)) {
+                        if (!isValidFlavor(key)) {
+                            continue;
+                        }
+                        if (!flavorMap.containsKey(key)) {
+                            flavorMap.put(key, new OverlayFlavor(flavor, flavorName));
+                        } else {
                             flavorMap.get(key).flavors.put(flavor, flavorName);
                         }
                     }
@@ -915,13 +924,22 @@ public class OmsBackendService extends BaseThemeService {
             overlay.flavors.putAll(flavorMap);
         }
     }
+    
+    private boolean isValidFlavor(String flavor) {
+        if (flavor.equals("type1a") || flavor.equals("type1b") || flavor.equals("type1c")
+                || flavor.equals("type2")) {
+            return true;
+        }
+        return false;
+    }
+
 
     private void getThemeStyles(Context themeContext, OverlayGroup group, Cipher cipher) {
         String[] types = null;
         try {
             types = themeContext.getAssets().list("overlays/android");
             String def = IOUtils.toString(AssetUtils.getAsset(themeContext.getAssets(), "overlays/android/"
-                    + "type3", cipher), Charset.defaultCharset());
+                    + "type3.enc", cipher), Charset.defaultCharset());
             boolean hasDefault = false;
             for (String type : types) {
                 if (type.equals("res")) {
