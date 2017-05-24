@@ -350,8 +350,6 @@ public class OmsBackendService extends BaseThemeService {
                             ex.printStackTrace();
                         }
                     }
-                // Housekeeping: cleanup cache
-                prefs.removeFile();
                 } catch (PackageManager.NameNotFoundException|IOException e) {
                     e.printStackTrace();
                 }
@@ -421,7 +419,8 @@ public class OmsBackendService extends BaseThemeService {
                                         aInfo.metaData.getString("theme_version", "")
                                                 .replace("v=", "");
                                 sb.append(", installedVersion=" + themeVersion);
-                                if (TextUtils.equals(themeVersion, theme.themeVersion)) {
+                                if (TextUtils.equals(themeVersion, theme.themeVersion)
+                                        && !checkStyles(overlay, prefs)) {
                                     Log.d(TAG, sb.toString());
                                     Log.d(TAG, "Skipped");
                                     continue;
@@ -460,7 +459,7 @@ public class OmsBackendService extends BaseThemeService {
                                 AssetUtils.copyAssetFolder(themeContext.getAssets(), "overlays/"
                                                 + overlay.targetPackage + "/" + type2.selected,
                                         overlayFolder.getAbsolutePath() + "/res", cipher);
-                                prefs.putString(overlay.targetPackage, type2.selected);
+                                prefs.putTypeSelection(overlay.targetPackage, "type2", type2.selected);
                             } catch (IOException e) {
                                 e.printStackTrace();
                             }
@@ -679,6 +678,16 @@ public class OmsBackendService extends BaseThemeService {
         }
     }
 
+    private boolean checkStyles(Overlay overlay, ThemePrefs prefs) {
+        boolean changed = false;
+        for (OverlayFlavor flavor : overlay.flavors.values()) {
+            String ins = prefs.getTypeSelection(overlay.targetPackage, flavor.key);
+            changed |= ins == null || ins.equals(flavor.selected);
+        }
+        Log.d(TAG, overlay.targetPackage + " : changed - " + changed);
+        return changed;
+    }
+
     private boolean compileOverlay(Theme theme, Overlay overlay, String overlayPath) {
         File overlayFolder = new File(getCacheDir() + "/" + theme.packageName + "/overlays");
         if (!overlayFolder.exists()) {
@@ -854,7 +863,7 @@ public class OmsBackendService extends BaseThemeService {
                 }
                 loadOverlayFlavors(themeContext, overlay, cipher);
                 for (OverlayFlavor flavor : overlay.flavors.values()) {
-                    String sel = prefs.getString(overlay.targetPackage + "_" + flavor.key, "");
+                    String sel = prefs.getTypeSelection(overlay.targetPackage, flavor.key);
                     if (!TextUtils.isEmpty(sel)) {
                         flavor.selected = sel;
                     }
@@ -1006,7 +1015,7 @@ public class OmsBackendService extends BaseThemeService {
                         }
                     }
                 }
-                prefs.putString(overlay.targetPackage, type.selected);
+                prefs.putTypeSelection(overlay.targetPackage, typeName, type.selected);
             } catch (Exception e) {
                 e.printStackTrace();
             }
