@@ -711,8 +711,9 @@ public class OmsBackendService extends BaseThemeService {
 
     @SuppressLint("SetWorldReadable")
     private String getAapt() {
-        String path = "/data/system/theme/bin/aapt";
-        File aaptFile = new File(path);
+        String path = "/data/system/theme/bin";
+        File aaptDir = new File(path);
+        File aaptFile = new File(aaptDir, "aapt");
         if (aaptFile.exists()) {
         } else {
             try {
@@ -724,11 +725,12 @@ public class OmsBackendService extends BaseThemeService {
         }
         // chmod 755
         try {
-            Os.chmod(aaptFile.getAbsolutePath(), 00755);
+            Os.chmod(aaptDir.getAbsolutePath(), 755);
+            Os.chmod(aaptFile.getAbsolutePath(), 755);
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return path;
+        return aaptFile.getAbsolutePath();
     }
 
     private void installAndEnable(String apk, String packageName) {
