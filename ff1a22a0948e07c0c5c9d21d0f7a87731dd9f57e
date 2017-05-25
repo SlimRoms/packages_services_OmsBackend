@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "47d7ec04_18083499",
+        "filename": "src/com/slimroms/omsbackend/OmsBackendService.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 93,
+      "author": {
+        "id": 1000097
+      },
+      "writtenOn": "2017-05-25T19:53:25Z",
+      "side": 1,
+      "message": "debug code should be nuked :P",
+      "revId": "ff1a22a0948e07c0c5c9d21d0f7a87731dd9f57e",
+      "serverId": "f8201d64-d729-4630-b91d-5f8be02869f0",
+      "unresolved": true
+    }
+  ]
+}
