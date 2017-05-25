@@ -36,6 +36,7 @@ import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.os.Environment;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.os.UserHandle;
@@ -389,6 +390,8 @@ public class OmsBackendService extends BaseThemeService {
                     e.printStackTrace();
                 }
 
+                boolean errored = false;
+
                 // handle overlays first
                 OverlayGroup overlays = info.groups.get(OverlayGroup.OVERLAYS);
                 if (overlays != null) {
@@ -488,6 +491,7 @@ public class OmsBackendService extends BaseThemeService {
 
                         generateManifest(theme, overlay, overlayFolder.getAbsolutePath());
                         if (!compileOverlay(theme, overlay, overlayFolder.getAbsolutePath())) {
+                            errored = true;
                             continue;
                         }
                         installAndEnable(getCacheDir().getAbsolutePath() + "/" + theme.packageName +
@@ -546,7 +550,7 @@ public class OmsBackendService extends BaseThemeService {
                 }
 
                 //mOverlayManager.refresh(UserHandle.USER_CURRENT);
-                sendFinishedBroadcast();
+                sendFinishedBroadcast(errored);
                 notifyInstallComplete();
                 // Housekeeping: cleanup cache
                 deleteContents(themeCache);
@@ -590,6 +594,8 @@ public class OmsBackendService extends BaseThemeService {
                 } catch (RemoteException e) {
                     e.printStackTrace();
                 }
+
+                boolean errored = false;
 
                 final StringBuilder sb = new StringBuilder();
                 for (Overlay overlay : overlays) {
@@ -639,7 +645,7 @@ public class OmsBackendService extends BaseThemeService {
                                 + getTargetPackage(overlay.targetPackage));
                     }
                 }
-                sendFinishedBroadcast();
+                sendFinishedBroadcast(errored);
                 notifyUninstallComplete();
                 return true;
             } finally {
@@ -737,7 +743,7 @@ public class OmsBackendService extends BaseThemeService {
             int exitCode = nativeApp.exitValue();
             String error = IOUtils.toString(nativeApp.getErrorStream(), Charset.defaultCharset());
             if (exitCode != 0 || !TextUtils.isEmpty(error)) {
-                Log.e(TAG, "aapt: exitCode:" + exitCode + " error: " + error);
+                Logger.logError(TAG, "aapt: exitCode:" + exitCode + " error: " + error);
                 return false;
             }
             // sign
@@ -1033,9 +1039,27 @@ public class OmsBackendService extends BaseThemeService {
         return (ni != null && ni.isConnected());
     }
 
-    private void sendFinishedBroadcast() {
+    private void sendFinishedBroadcast(boolean error) {
         Intent intent = new Intent("slim.action.INSTALL_FINISHED");
+        if (true) {
+            Intent activity = new Intent("slim.action.THEME_BUGREPORT");
+            activity.putExtra("logs", getLogs());
+            activity.putExtra("title", "Theme Bugreport");
+            startActivity(activity);
+        }
+        intent.putExtra("slim.extra.INSTALL_ERRORED", error);
         sendBroadcast(intent);
+    }
+
+    private String[] getLogs() {
+        File[] logs = Logger.getLatestLogs();
+        String[] r = new String[logs.length];
+        String debug;
+        String error;
+        for (int i = 0; i < logs.length; i++) {
+            r[i] = logs[i].getAbsolutePath();
+        }
+        return r;
     }
 
     private boolean parseBootanimation(Context themeContext, String bootAnimName, File bootanimFile, Cipher cipher) {
