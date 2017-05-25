@@ -73,7 +73,7 @@ import static org.apache.commons.io.FileUtils.copyInputStreamToFile;
 
 public class OmsBackendService extends BaseThemeService {
 
-    private static final String TAG = "SlimTM-OmsBackendService";
+    private static final String TAG = "OmsBackendService";
 
     private static final String BOOTANIMATION_FILE = "/data/system/theme/bootanimation.zip";
     private static final String BOOTANIMATION_METADATA =
@@ -90,6 +90,10 @@ public class OmsBackendService extends BaseThemeService {
     @Override
     public void onCreate() {
         super.onCreate();
+        Logger.logDebug(TAG, "TEST");
+        Logger.logError(TAG, "TEST");
+        Logger.cleanup();
+        Logger.getLatestLogs();
         mSystemUIPackages.put("com.android.systemui.headers", "System UI Headers");
         mSystemUIPackages.put("com.android.systemui.navbars", "System UI Navigation");
         mSystemUIPackages.put("com.android.systemui.statusbars", "System UI Status Bar Icons");
@@ -390,7 +394,7 @@ public class OmsBackendService extends BaseThemeService {
                 if (overlays != null) {
                     ThemePrefs prefs = getThemePrefs(theme.packageName + "_prefs");
                     if (!TextUtils.isEmpty(overlays.selectedStyle)) {
-                        Log.d(TAG, "selectedStyle=" + overlays.selectedStyle);
+                        Logger.logDebug(TAG, "selectedStyle=" + overlays.selectedStyle);
                         prefs.putString("selectedStyle", overlays.selectedStyle);
                     }
                     // put system overlay to the end of the list
@@ -421,8 +425,8 @@ public class OmsBackendService extends BaseThemeService {
                                 sb.append(", installedVersion=" + themeVersion);
                                 if (TextUtils.equals(themeVersion, theme.themeVersion)
                                         && !checkStyles(overlay, prefs)) {
-                                    Log.d(TAG, sb.toString());
-                                    Log.d(TAG, "Skipped");
+                                    Logger.logDebug(TAG, sb.toString());
+                                    Logger.logDebug(TAG, "Skipped");
                                     continue;
                                 }
                             }
@@ -467,13 +471,13 @@ public class OmsBackendService extends BaseThemeService {
                             sb.append(", type2=null");
                         }
 
-                        Log.d(TAG, sb.toString());
+                        Logger.logDebug(TAG, sb.toString());
                         sb.setLength(0);
                         sb.append("Available flavors:");
                         for (String flavor : overlay.flavors.keySet()) {
                             sb.append(" " + flavor);
                         }
-                        Log.d(TAG, sb.toString());
+                        Logger.logDebug(TAG, sb.toString());
                         // handle type1 last
                         handleExtractType1Flavor(
                                 themeContext, overlay, "type1a", overlayFolder, prefs, cipher);
@@ -606,13 +610,13 @@ public class OmsBackendService extends BaseThemeService {
                         if (bootanimMetadata.exists()) {
                             bootanimMetadata.delete();
                         }
-                        Log.d(TAG, sb.toString());
-                        Log.d(TAG, "Complete");
+                        Logger.logDebug(TAG, sb.toString());
+                        Logger.logDebug(TAG, "Complete");
                         continue;
                     }
 
                     sb.append(", package=" + overlay.overlayPackage);
-                    Log.d(TAG, sb.toString());
+                    Logger.logDebug(TAG, sb.toString());
                     List<OverlayInfo> ois = overlayInfos.get(getTargetPackage(overlay.targetPackage));
                     if (ois != null) {
                         for (OverlayInfo oi : ois) {
@@ -622,7 +626,7 @@ public class OmsBackendService extends BaseThemeService {
                                 mOverlayManager.setEnabled(overlay.overlayPackage,
                                         false, UserHandle.USER_CURRENT, false);
                                 if (mPMUtils.uninstallPackage(overlay.overlayPackage)) {
-                                    Log.d(TAG, "Complete");
+                                    Logger.logDebug(TAG, "Complete");
                                 } else {
                                     Log.e(TAG, "Failed");
                                 }
@@ -631,7 +635,7 @@ public class OmsBackendService extends BaseThemeService {
                             Log.e(TAG, "No package name match found for " + overlay.overlayPackage);
                         }
                     } else {
-                        Log.d(TAG, "No installed overlays found for target package "
+                        Logger.logDebug(TAG, "No installed overlays found for target package "
                                 + getTargetPackage(overlay.targetPackage));
                     }
                 }
@@ -684,7 +688,7 @@ public class OmsBackendService extends BaseThemeService {
             String ins = prefs.getTypeSelection(overlay.targetPackage, flavor.key);
             changed |= ins == null || ins.equals(flavor.selected);
         }
-        Log.d(TAG, overlay.targetPackage + " : changed - " + changed);
+        Logger.logDebug(TAG, overlay.targetPackage + " : changed - " + changed);
         return changed;
     }
 
@@ -704,10 +708,10 @@ public class OmsBackendService extends BaseThemeService {
             signedOverlay.delete();
         }
 
-        Log.d(TAG,"compileOverlay: overlayPath     = " + overlayPath);
-        Log.d(TAG,"compileOverlay: overlayFolder   = " + overlayFolder.getAbsolutePath());
-        Log.d(TAG,"compileOverlay: unsignedOverlay = " + unsignedOverlay.getAbsolutePath());
-        Log.d(TAG,"compileOverlay: signedOverlay   = " + signedOverlay.getAbsolutePath());
+        Logger.logDebug(TAG,"compileOverlay: overlayPath     = " + overlayPath);
+        Logger.logDebug(TAG,"compileOverlay: overlayFolder   = " + overlayFolder.getAbsolutePath());
+        Logger.logDebug(TAG,"compileOverlay: unsignedOverlay = " + unsignedOverlay.getAbsolutePath());
+        Logger.logDebug(TAG,"compileOverlay: signedOverlay   = " + signedOverlay.getAbsolutePath());
 
         ApplicationInfo info = null;
         try {
@@ -718,7 +722,7 @@ public class OmsBackendService extends BaseThemeService {
             return false;
         }
 
-        Log.d(TAG,"compileOverlay: info.sourceDir  = " + info.sourceDir);
+        Logger.logDebug(TAG,"compileOverlay: info.sourceDir  = " + info.sourceDir);
 
         try {
             Process nativeApp = Runtime.getRuntime().exec(new String[]{
@@ -779,7 +783,7 @@ public class OmsBackendService extends BaseThemeService {
     private void installAndEnable(String apk, String packageName) {
         try {
             if (mPMUtils.installPackage(apk)) {
-                Log.d(TAG, "Successfully installed overlay - " + packageName);
+                Logger.logDebug(TAG, "Successfully installed overlay - " + packageName);
                 OverlayInfo info = null;
                 while (info == null) {
                     try {
@@ -794,7 +798,7 @@ public class OmsBackendService extends BaseThemeService {
                             true, UserHandle.USER_CURRENT, true)) {
                         Log.e(TAG, "Failed to enable overlay - " + packageName);
                     } else {
-                        Log.d(TAG, "Successfully enabled overlay - " + packageName);
+                        Logger.logDebug(TAG, "Successfully enabled overlay - " + packageName);
                     }
                 } catch (Exception e) {
                     Log.e(TAG, "Exception while enabling overlay - " + packageName);
@@ -998,7 +1002,7 @@ public class OmsBackendService extends BaseThemeService {
                                           File overlayFolder, ThemePrefs prefs, Cipher cipher) {
         OverlayFlavor type = overlay.flavors.get(typeName);
         if (type != null) {
-            Log.d(TAG, "handleExtractType1Flavor, selected=" + type.selected);
+            Logger.logDebug(TAG, "handleExtractType1Flavor, selected=" + type.selected);
             if (type.selected == null) return;
             AssetManager am = themeContext.getAssets();
             try {
@@ -1020,7 +1024,7 @@ public class OmsBackendService extends BaseThemeService {
                 e.printStackTrace();
             }
         } else {
-            Log.d(TAG, "Flavor " + typeName + " is null!");
+            Logger.logDebug(TAG, "Flavor " + typeName + " is null!");
         }
     }
 
