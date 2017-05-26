@@ -1,0 +1,50 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "93d3a82a_f91233a2",
+        "filename": "src/com/slimroms/omsbackend/OmsBackendService.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 716,
+      "author": {
+        "id": 1000043
+      },
+      "writtenOn": "2017-05-26T03:41:33Z",
+      "side": 1,
+      "message": "This doesn\u0027t seem to be working Getting an error saying\n\"annot run program \"/data/system/theme/bin\", it\u0027s confusing a folder with aapt?",
+      "range": {
+        "startLine": 716,
+        "startChar": 13,
+        "endLine": 716,
+        "endChar": 21
+      },
+      "revId": "60989992c583b89a2024b96e1c20d9206f21b174",
+      "serverId": "f8201d64-d729-4630-b91d-5f8be02869f0",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "7af6ca59_b6072fa3",
+        "filename": "src/com/slimroms/omsbackend/OmsBackendService.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 729,
+      "author": {
+        "id": 1000043
+      },
+      "writtenOn": "2017-05-26T03:41:33Z",
+      "side": 1,
+      "message": "I don\u0027t know why this 755 (Should be rwx-r-xr-x) is turning in to d-wxew--wt for bin folder and --wxrw--wt for aapt. Everywhere else i\u0027ve seen google uses 4 digits so 0755? Unless somewhere else it\u0027s chmod this path?",
+      "range": {
+        "startLine": 728,
+        "startChar": 0,
+        "endLine": 729,
+        "endChar": 54
+      },
+      "revId": "60989992c583b89a2024b96e1c20d9206f21b174",
+      "serverId": "f8201d64-d729-4630-b91d-5f8be02869f0",
+      "unresolved": false
+    }
+  ]
+}
