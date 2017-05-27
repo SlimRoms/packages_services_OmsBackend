@@ -23,6 +23,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     coreApp="true"
     package="com.slimroms.omsbackend"
+    android:sharedUserId="slim.uid.theme"
     android:versionCode="10000" android:versionName="1.0">
 
     <uses-permission android:name="android.permission.INSTALL_PACKAGES" />
