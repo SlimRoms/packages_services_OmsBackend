@@ -270,9 +270,9 @@ public class OmsBackendService extends BaseThemeService {
                                     + font, fontFile.getAbsolutePath(), cipher);
 
                             try {
-                                Os.chmod(fontFile.getAbsolutePath(), 0777);
-                                Os.chmod(fontFile.getParent(), 0777);
-                                Os.chmod(fontFile.getParentFile().getParent(), 0777);
+                                Shell.chmod(fontFile.getAbsolutePath(), 777);
+                                Shell.chmod(fontFile.getParent(), 777);
+                                Shell.chmod(fontFile.getParentFile().getParent(), 777);
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }
@@ -298,9 +298,9 @@ public class OmsBackendService extends BaseThemeService {
                             parseBootanimation(themeContext, bootName, bootanimFile, cipher);
 
                             try {
-                                Os.chmod(bootanimFile.getAbsolutePath(), 0777);
-                                Os.chmod(bootanimFile.getParent(), 0777);
-                                Os.chmod(bootanimFile.getParentFile().getParent(), 0777);
+                                Shell.chmod(bootanimFile.getAbsolutePath(), 777);
+                                Shell.chmod(bootanimFile.getParent(), 777);
+                                Shell.chmod(bootanimFile.getParentFile().getParent(), 777);
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }
@@ -521,7 +521,7 @@ public class OmsBackendService extends BaseThemeService {
                             }
                             // chmod 644
                             try {
-                                Os.chmod(bootanimBinary.getAbsolutePath(), 0644);
+                                Shell.chmod(bootanimBinary.getAbsolutePath(), 644);
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }
@@ -532,7 +532,7 @@ public class OmsBackendService extends BaseThemeService {
                                 FileUtils.writeStringToFile(
                                         bootanimMetadata, json, Charset.defaultCharset());
                                 // chmod 644
-                                Os.chmod(bootanimMetadata.getAbsolutePath(), 0644);
+                                Shell.chmod(bootanimMetadata.getAbsolutePath(), 644);
                             } catch (Exception ex) {
                                 ex.printStackTrace();
                             }
@@ -770,8 +770,8 @@ public class OmsBackendService extends BaseThemeService {
         }
         // chmod 755
         try {
-            Os.chmod(aaptDir.getAbsolutePath(), 0755);
-            Os.chmod(aaptFile.getAbsolutePath(), 0755);
+            Shell.chmod(aaptDir.getAbsolutePath(), 755);
+            Shell.chmod(aaptFile.getAbsolutePath(), 755);
         } catch (Exception e) {
             e.printStackTrace();
         }
