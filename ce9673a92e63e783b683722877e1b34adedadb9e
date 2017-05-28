@@ -1,0 +1,50 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "8ab3580c_1c9b4de4",
+        "filename": "src/com/slimroms/omsbackend/PackageListener.java",
+        "patchSetId": 3
+      },
+      "lineNbr": 1,
+      "author": {
+        "id": 1000043
+      },
+      "writtenOn": "2017-05-28T00:33:37Z",
+      "side": 1,
+      "message": "Licensing, where is this based/from ?",
+      "range": {
+        "startLine": 1,
+        "startChar": 0,
+        "endLine": 1,
+        "endChar": 32
+      },
+      "revId": "ce9673a92e63e783b683722877e1b34adedadb9e",
+      "serverId": "f8201d64-d729-4630-b91d-5f8be02869f0",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "1437f3ef_df0bdedc",
+        "filename": "src/com/slimroms/omsbackend/PackageListener.java",
+        "patchSetId": 3
+      },
+      "lineNbr": 71,
+      "author": {
+        "id": 1000043
+      },
+      "writtenOn": "2017-05-28T00:33:37Z",
+      "side": 1,
+      "message": "to long",
+      "range": {
+        "startLine": 71,
+        "startChar": 12,
+        "endLine": 71,
+        "endChar": 119
+      },
+      "revId": "ce9673a92e63e783b683722877e1b34adedadb9e",
+      "serverId": "f8201d64-d729-4630-b91d-5f8be02869f0",
+      "unresolved": false
+    }
+  ]
+}
