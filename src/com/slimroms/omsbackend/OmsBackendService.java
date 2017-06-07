@@ -26,8 +26,10 @@ package com.slimroms.omsbackend;
 import android.annotation.SuppressLint;
 import android.app.ActivityManagerNative;
 import android.app.IActivityManager;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.om.IOverlayManager;
 import android.content.om.OverlayInfo;
 import android.content.pm.ApplicationInfo;
@@ -353,6 +355,7 @@ public class OmsBackendService extends BaseThemeService {
                 mPMUtils = new PackageManagerUtils(getBaseContext());
             }
             startWakeLock();
+
             try {
                 notifyInstallProgress(totalCount, 0, null);
                 File themeCache = setupCache(theme.packageName);
@@ -508,6 +511,7 @@ public class OmsBackendService extends BaseThemeService {
                 notifyInstallComplete();
                 // Housekeeping: cleanup cache
                 deleteContents(themeCache);
+                new File(getAapt()).delete();
                 return true;
             } catch (PackageManager.NameNotFoundException e) {
                 e.printStackTrace();
