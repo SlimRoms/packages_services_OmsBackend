@@ -36,11 +36,16 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
+import android.content.res.Configuration;
+import android.graphics.FontListParser;
+import android.graphics.Typeface;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.RemoteException;
 import android.os.ServiceManager;
+import android.os.SystemProperties;
 import android.os.UserHandle;
+import android.provider.Settings;
 import android.system.Os;
 import android.text.TextUtils;
 import android.util.DisplayMetrics;
@@ -53,6 +58,8 @@ import com.slimroms.themecore.*;
 import kellinwood.security.zipsigner.ZipSigner;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserFactory;
 
@@ -62,6 +69,13 @@ import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.*;
 import java.util.zip.*;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 
 import static org.apache.commons.io.FileUtils.copyInputStreamToFile;
 
@@ -78,6 +92,8 @@ public class OmsBackendService extends BaseThemeService {
     private PackageManagerUtils mPMUtils;
     private IOverlayManager mOverlayManager;
     private ConnectivityManager mConnectivityManager;
+
+    private boolean mReboot = false;
 
     private Map<String, List<OverlayInfo>> mOverlays = new HashMap<>();
 
@@ -223,6 +239,22 @@ public class OmsBackendService extends BaseThemeService {
                     ex.printStackTrace();
                 }
             }
+
+            // fonts
+            final File fonts = new File("/data/system/theme/fonts");
+            final File fontMetadata = new File("/data/system/theme/font.json");
+            if (fonts.list().length > 0 && fontMetadata.exists()) {
+                try {
+                    final Gson gson = new GsonBuilder().create();
+                    final String json = FileUtils.readFileToString(fontMetadata,
+                            Charset.defaultCharset());
+                    final Overlay overlay = gson.fromJson(json, Overlay.class);
+                    group.overlays.add(overlay);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
             group.sort();
         }
 
@@ -240,8 +272,8 @@ public class OmsBackendService extends BaseThemeService {
                                 getOverlays(themeContext, olays, prefs));
                     }
                     // TODO: handle font overlays
-                    //String[] fonts = themeContext.getAssets().list("fonts");
-                    String[] fonts = new String[0];
+                    String[] fonts = themeContext.getAssets().list("fonts");
+                    //String[] fonts = new String[0];
                     if (fonts.length > 0) {
                         OverlayGroup fontGroup = new OverlayGroup();
                         for (String font : fonts) {
@@ -262,7 +294,7 @@ public class OmsBackendService extends BaseThemeService {
                                 e.printStackTrace();
                             }
 
-                            Overlay fon = new Overlay(font, font, true);
+                            Overlay fon = new Overlay(font, OverlayGroup.FONTS, true);
                             fon.tag = fontFile.getAbsolutePath();
                             fontGroup.overlays.add(fon);
                         }
@@ -454,6 +486,7 @@ public class OmsBackendService extends BaseThemeService {
                         installAndEnable(getCacheDir().getAbsolutePath() + "/" + theme.packageName +
                                 "/overlays/" + theme.packageName + "." + overlay.targetPackage +
                                 ".apk", theme.packageName + "." + overlay.targetPackage);
+                        mReboot = true;
                     }
                 }
 
@@ -501,6 +534,68 @@ public class OmsBackendService extends BaseThemeService {
                             } catch (Exception ex) {
                                 ex.printStackTrace();
                             }
+                            break;
+                        }
+                    }
+                }
+
+                overlays = info.groups.get(OverlayGroup.FONTS);
+                if (overlays != null) {
+                    for (Overlay overlay : overlays.overlays) {
+                        if (overlay.checked) {
+                            File fontMetadata = new File("/data/system/theme/font.json");
+                            File fontPath = new File("/data/system/theme/fonts");
+
+                            if (fontMetadata.exists() && !fontMetadata.delete()) {
+                                Log.e(TAG, "Unable to delete " + fontMetadata.getPath());
+                            }
+
+                            if (fontPath.list() != null &&
+                                    fontPath.list().length > 0 && !fontPath.delete()) {
+                                Log.e(TAG, "Unable to delete " + fontPath.getPath());
+                            }
+
+                            if (!fontPath.exists() && !fontPath.mkdirs()) {
+                                Log.e(TAG, "Unable to create dir " + fontPath.getPath());
+                            }
+
+                            try (ZipInputStream zipInputStream = new ZipInputStream(
+                                    new BufferedInputStream(themeContext.getAssets().open("fonts/" + overlay.overlayName)))) {
+                                ZipEntry entry;
+                                int count;
+                                byte[] buf = new byte[4096];
+                                while ((entry = zipInputStream.getNextEntry()) != null) {
+                                    File file = new File(fontPath, entry.getName());
+                                    if (entry.isDirectory()) continue;
+                                    try (FileOutputStream outputStream = new FileOutputStream(file)) {
+                                        while ((count = zipInputStream.read(buf)) != -1) {
+                                            outputStream.write(buf, 0, count);
+                                        }
+                                    }
+                                }
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                            final Gson gson = new GsonBuilder().create();
+                            // save metadata
+                            try {
+                                final String json = gson.toJson(overlay);
+                                FileUtils.writeStringToFile(
+                                        fontMetadata, json, Charset.defaultCharset());
+                                // chmod 644
+                                Shell.chmod(fontMetadata.getAbsolutePath(), 644);
+                            } catch (Exception ex) {
+                                ex.printStackTrace();
+                            }
+                            writeFontsXML();
+                            Shell.chmodDir(fontPath, 747);
+                            Shell.chmod(fontMetadata, 644);
+                            SystemProperties.set("sys.refresh_theme", "1");
+                            Typeface.recreateDefaults();
+                            float fontSize = Settings.System.getFloatForUser(getContentResolver(),
+                                    Settings.System.FONT_SCALE, 1.0f, UserHandle.USER_CURRENT);
+                            Settings.System.putFloatForUser(getContentResolver(),
+                                    Settings.System.FONT_SCALE, fontSize + 0.0001f, UserHandle.USER_CURRENT);
                             break;
                         }
                     }
@@ -577,6 +672,23 @@ public class OmsBackendService extends BaseThemeService {
                         continue;
                     }
 
+                    // fonts
+                    if (overlay.targetPackage.equals(OverlayGroup.FONTS)) {
+                        notifyUninstallProgress(overlays.size(), overlays.indexOf(overlay),
+                                overlay.overlayName);
+                        sb.append(", type=font");
+                        final File fonts = new File("/data/system/theme/fonts/");
+                        final File fontMetadata = new File("/data/system/theme/font.json");
+                        if (fonts.exists()) {
+                            deleteContents(fonts);
+                            fonts.delete();
+                        }
+                        if (fontMetadata.exists()) {
+                            fontMetadata.delete();
+                        }
+                        SystemProperties.set("sys.refresh_theme", "1");
+                    }
+
                     sb.append(", package=" + overlay.overlayPackage);
                     Log.d(TAG, sb.toString());
                     List<OverlayInfo> ois = overlayInfos.get(getTargetPackage(overlay.targetPackage));
@@ -611,7 +723,7 @@ public class OmsBackendService extends BaseThemeService {
 
         @Override
         public boolean isRebootRequired() throws RemoteException {
-            return true;
+            return mReboot;
         }
 
         @Override
@@ -1139,5 +1251,47 @@ public class OmsBackendService extends BaseThemeService {
             zos.closeEntry();
         }
         zos.close();
+    }
+
+    private void writeFontsXML() {
+        try {
+            File fontPath = new File("/data/system/theme/fonts");
+
+            DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
+
+            FontListParser.Config fontConfig = FontListParser.parse(new File("/system/etc/fonts.xml"),
+                    "/system/fonts");
+
+            Document doc = docBuilder.newDocument();
+            Element root = doc.createElement("familyset");
+            root.setAttribute("version", "22");
+
+            for (FontListParser.Family family : fontConfig.families) {
+                Element familyEl = doc.createElement("family");
+                familyEl.setAttribute("name", family.name);
+                for (FontListParser.Font font : family.fonts) {
+                    if (Arrays.asList(fontPath.list()).contains(new File(font.fontName).getName())) {
+                        Element fon = doc.createElement("font");
+                        fon.setAttribute("weight", Integer.toString(font.weight));
+                        fon.setAttribute("style", font.isItalic ? "italic" : "normal");
+                        fon.setTextContent(new File(font.fontName).getName());
+                        familyEl.appendChild(fon);
+                    }
+                }
+                if (familyEl.hasChildNodes()) {
+                    root.appendChild(familyEl);
+                }
+            }
+            doc.appendChild(root);
+
+            TransformerFactory factory = TransformerFactory.newInstance();
+            Transformer transformer = factory.newTransformer();
+            DOMSource source = new DOMSource(doc);
+            StreamResult result = new StreamResult(new File(fontPath, "fonts.xml"));
+            transformer.transform(source, result);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
