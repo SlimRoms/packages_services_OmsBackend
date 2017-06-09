@@ -126,7 +126,7 @@ public class OmsBackendService extends BaseThemeService {
                         try {
                             PackageInfo pInfo = pm.getPackageInfo(info.packageName, 0);
                             Theme theme = createTheme(name, info.packageName,
-                                    pInfo.versionName, author, null);
+                                    pInfo.versionName, pInfo.versionCode, author, null);
                             themes.add(theme);
                         } catch (PackageManager.NameNotFoundException e) {
                             e.printStackTrace();
@@ -391,12 +391,16 @@ public class OmsBackendService extends BaseThemeService {
                         try {
                             ApplicationInfo aInfo = getPackageManager().getApplicationInfo(
                                     overlay.overlayPackage, PackageManager.GET_META_DATA);
+                            PackageInfo appInfo = getPackageManager().getPackageInfo(
+                                    overlay.targetPackage, 0);
                             if (aInfo.metaData != null) {
-                                String themeVersion =
-                                        aInfo.metaData.getString("theme_version", "")
-                                                .replace("v=", "");
+                                int themeVersion =
+                                        aInfo.metaData.getInt("theme_version", -1);
                                 sb.append(", installedVersion=" + themeVersion);
-                                if (TextUtils.equals(themeVersion, theme.themeVersion)
+                                int appVersion =
+                                        aInfo.metaData.getInt("app_version", -1);
+                                if (themeVersion == theme.themeVersionCode
+                                        && appVersion == appInfo.versionCode
                                         && !checkStyles(overlay, prefs)) {
                                     Log.d(TAG, sb.toString());
                                     Log.d(TAG, "Skipped");
@@ -447,7 +451,10 @@ public class OmsBackendService extends BaseThemeService {
                         handleExtractType1Flavor(
                                 themeContext, overlay, "type1c", overlayFolder, prefs);
 
-                        generateManifest(theme, overlay, overlayFolder.getAbsolutePath());
+                        PackageInfo appInfo =
+                                getPackageManager().getPackageInfo(overlay.targetPackage, 0);
+                        generateManifest(theme, overlay,
+                                overlayFolder.getAbsolutePath(), appInfo.versionCode);
                         if (!compileOverlay(theme, overlay, overlayFolder.getAbsolutePath())) {
                             continue;
                         }
@@ -620,7 +627,7 @@ public class OmsBackendService extends BaseThemeService {
         }
     }
 
-    private void generateManifest(Theme theme, Overlay overlay, String path) {
+    private void generateManifest(Theme theme, Overlay overlay, String path, int appVersion) {
         String targetPackage = getTargetPackage(overlay.targetPackage);
         StringBuilder manifest = new StringBuilder();
         manifest.append("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
@@ -629,12 +636,14 @@ public class OmsBackendService extends BaseThemeService {
         manifest.append("<overlay\n");
         manifest.append("android:targetPackage=\"" + targetPackage + "\"/>\n");
         manifest.append("<application>\n");
-        manifest.append("<meta-data android:name=\"theme_version\" android:value=\"v="
-                + theme.themeVersion + "\"/>\n");
+        manifest.append("<meta-data android:name=\"theme_version\" android:value=\""
+                + theme.themeVersionCode + "\"/>\n");
         manifest.append("<meta-data android:name=\"theme_package\" android:value=\""
                 + theme.packageName + "\"/>\n");
         manifest.append("<meta-data android:name=\"target_package\" android:value=\""
                 + overlay.targetPackage + "\"/>\n");
+        manifest.append("<meta-data android:name=\"app_version\" android:value=\""
+                + appVersion + "\"/>\n");
         manifest.append("</application>\n");
         manifest.append("</manifest>");
         try {
@@ -648,7 +657,9 @@ public class OmsBackendService extends BaseThemeService {
         boolean changed = false;
         for (OverlayFlavor flavor : overlay.flavors.values()) {
             String ins = prefs.getTypeSelection(overlay.targetPackage, flavor.key);
-            changed |= ins == null || ins.equals(flavor.selected);
+            Log.d(TAG, "selected - " + flavor.selected);
+            Log.d(TAG, "saved - " + ins);
+            changed |= ins != null && flavor.selected != null && !ins.equals(flavor.selected);
         }
         Log.d(TAG, overlay.targetPackage + " : changed - " + changed);
         return changed;
