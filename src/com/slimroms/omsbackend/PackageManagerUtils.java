@@ -211,36 +211,20 @@ public class PackageManagerUtils {
     }
 
     public boolean uninstallPackage(String packageName) {
-        LocalPackageDeleteObserver obs = new LocalPackageDeleteObserver();
+        LocalIntentReceiver receiver = new LocalIntentReceiver();
         try {
-            mPm.deletePackageAsUser(packageName, obs, 0, UserHandle.USER_CURRENT);
-            synchronized (obs) {
-                while (!obs.finished) {
-                    try {
-                        obs.wait();
-                    } catch (InterruptedException e) {
-                    }
-                }
-            }
+            mInstaller.uninstall(packageName, mContext.getPackageName(), 0,
+                    receiver.getIntentSender(), UserHandle.getCallingUserId());
+            final Intent intent = receiver.getResult();
+            final int status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS,
+                    PackageInstaller.STATUS_FAILURE);
+            return status == PackageInstaller.STATUS_SUCCESS;
         } catch (RemoteException ex) {
             ex.printStackTrace();
         }
-        return obs.result;
+        return false;
     }
 
-    class LocalPackageDeleteObserver extends IPackageDeleteObserver.Stub {
-        boolean finished;
-        boolean result;
-
-        @Override
-        public void packageDeleted(String name, int returnCode) {
-            synchronized (this) {
-                finished = true;
-                result = returnCode == PackageManager.DELETE_SUCCEEDED;
-                notifyAll();
-            }
-        }
-    }
     private static class LocalIntentReceiver {
         private final SynchronousQueue<Intent> mResult = new SynchronousQueue<>();
 
