@@ -1,0 +1,73 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "8885418b_bfb676ec",
+        "filename": "src/com/slimroms/omsbackend/OmsBackendService.java",
+        "patchSetId": 3
+      },
+      "lineNbr": 825,
+      "author": {
+        "id": 1000043
+      },
+      "writtenOn": "2017-06-09T14:18:59Z",
+      "side": 1,
+      "message": "length",
+      "range": {
+        "startLine": 825,
+        "startChar": 16,
+        "endLine": 825,
+        "endChar": 106
+      },
+      "revId": "65420ec4425ec56bc307265a331660011532fa70",
+      "serverId": "f8201d64-d729-4630-b91d-5f8be02869f0",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "e44a45f4_027e81a9",
+        "filename": "src/com/slimroms/omsbackend/OmsBackendService.java",
+        "patchSetId": 3
+      },
+      "lineNbr": 1274,
+      "author": {
+        "id": 1000043
+      },
+      "writtenOn": "2017-06-09T14:18:59Z",
+      "side": 1,
+      "message": "length",
+      "range": {
+        "startLine": 1274,
+        "startChar": 12,
+        "endLine": 1274,
+        "endChar": 102
+      },
+      "revId": "65420ec4425ec56bc307265a331660011532fa70",
+      "serverId": "f8201d64-d729-4630-b91d-5f8be02869f0",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "e2f62d62_a7b92774",
+        "filename": "src/com/slimroms/omsbackend/OmsBackendService.java",
+        "patchSetId": 3
+      },
+      "lineNbr": 1285,
+      "author": {
+        "id": 1000043
+      },
+      "writtenOn": "2017-06-09T14:18:59Z",
+      "side": 1,
+      "message": "length",
+      "range": {
+        "startLine": 1285,
+        "startChar": 19,
+        "endLine": 1285,
+        "endChar": 101
+      },
+      "revId": "65420ec4425ec56bc307265a331660011532fa70",
+      "serverId": "f8201d64-d729-4630-b91d-5f8be02869f0",
+      "unresolved": false
+    }
+  ]
+}
