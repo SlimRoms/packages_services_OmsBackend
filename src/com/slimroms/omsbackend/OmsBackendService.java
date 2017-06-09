@@ -164,7 +164,7 @@ public class OmsBackendService extends BaseThemeService {
         }
 
         @Override
-        public void getInstalledOverlays(OverlayGroup group) throws RemoteException {
+        public void getInstalledOverlays(OverlayThemeInfo info) throws RemoteException {
             Map<String, List<OverlayInfo>> overlayInfos = new HashMap<>();
             try {
                 overlayInfos = mOverlayManager.getAllOverlays(UserHandle.USER_CURRENT);
@@ -172,23 +172,24 @@ public class OmsBackendService extends BaseThemeService {
                 e.printStackTrace();
             }
 
+            OverlayGroup overlayGroup = new OverlayGroup();
             for (List<OverlayInfo> overlays : overlayInfos.values()) {
                 for (OverlayInfo overlayInfo : overlays) {
                     if (overlayInfo.state != OverlayInfo.STATE_APPROVED_ENABLED)
                         continue;
                     Overlay overlay = null;
-                    ApplicationInfo info = null;
+                    ApplicationInfo aInfo;
                     try {
-                        info = getPackageManager().getApplicationInfo(overlayInfo.packageName,
+                        aInfo = getPackageManager().getApplicationInfo(overlayInfo.packageName,
                                 PackageManager.GET_META_DATA);
                     } catch (PackageManager.NameNotFoundException e) {
                         continue;
                     }
-                    if (info.metaData == null) {
+                    if (aInfo.metaData == null) {
                         Log.e(TAG, "overlay is missing metaData");
                         continue;
                     }
-                    String targetPackage = info.metaData.getString("target_package",
+                    String targetPackage = aInfo.metaData.getString("target_package",
                             overlayInfo.targetPackageName);
                     boolean targetPackageInstalled;
                     ApplicationInfo targetInfo = null;
@@ -206,7 +207,7 @@ public class OmsBackendService extends BaseThemeService {
                     } else {
                         String overlayName = (targetInfo != null)
                                 ? targetInfo.loadLabel(getPackageManager()).toString()
-                                : info.loadLabel(getPackageManager()).toString();
+                                : aInfo.loadLabel(getPackageManager()).toString();
                         overlay = new Overlay(overlayName, targetPackage, targetPackageInstalled);
                     }
                     if (overlay != null) {
@@ -214,21 +215,26 @@ public class OmsBackendService extends BaseThemeService {
                         overlay.isOverlayEnabled =
                                 (overlayInfo.state == OverlayInfo.STATE_APPROVED_ENABLED);
                         overlay.overlayVersion =
-                                info.metaData.getString("theme_version", "").replace("v=", "");
-                        overlay.themePackage = info.metaData.getString("theme_package", null);
+                                Integer.toString(aInfo.metaData.getInt("theme_version", -1));
+                        overlay.themePackage = aInfo.metaData.getString("theme_package", null);
                         if (overlay.themePackage == null) {
                             // fallback substratum compatibility
                             overlay.themePackage =
                                     String.format("%s (Substratum)",
-                                            info.metaData.getString("Substratum_Parent", null));
+                                            aInfo.metaData.getString("Substratum_Parent", null));
                         }
                         overlay.isOverlayInstalled = true;
-                        group.overlays.add(overlay);
+                        overlayGroup.overlays.add(overlay);
                     }
                 }
             }
+            if (!overlayGroup.overlays.isEmpty()) {
+                overlayGroup.sort();
+                info.groups.put(OverlayGroup.OVERLAYS, overlayGroup);
+            }
 
             // bootanimation
+            OverlayGroup bootanimationGroup = new OverlayGroup();
             final File bootanimBinary = new File(BOOTANIMATION_FILE);
             final File bootanimMetadata = new File(BOOTANIMATION_METADATA);
             if (bootanimBinary.exists() && bootanimMetadata.exists()) {
@@ -237,16 +243,21 @@ public class OmsBackendService extends BaseThemeService {
                     final String json = FileUtils.readFileToString(bootanimMetadata,
                             Charset.defaultCharset());
                     final Overlay overlay = gson.fromJson(json, Overlay.class);
-                    group.overlays.add(overlay);
+                    overlay.checked = false;
+                    bootanimationGroup.overlays.add(overlay);
                 }
                 catch (IOException ex) {
                     ex.printStackTrace();
                 }
             }
+            if (!bootanimationGroup.overlays.isEmpty()) {
+                info.groups.put(OverlayGroup.BOOTANIMATIONS, bootanimationGroup);
+            }
 
             // fonts
-            final File fonts = new File("/data/system/theme/fonts");
-            final File fontMetadata = new File("/data/system/theme/font.json");
+            OverlayGroup fontGroup = new OverlayGroup();
+            final File fonts = new File(THEME_FONT_PATH);
+            final File fontMetadata = new File(THEME_FONT_METADATA);
             if (fonts.list() != null && fonts.list().length > 0 && fontMetadata.exists()) {
                 try {
                     final Gson gson = new GsonBuilder().create();
@@ -254,13 +265,16 @@ public class OmsBackendService extends BaseThemeService {
                             Charset.defaultCharset());
                     final Overlay overlay = gson.fromJson(json, Overlay.class);
                     overlay.checked = false;
-                    group.overlays.add(overlay);
+                    fontGroup.overlays.add(overlay);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             }
 
-            group.sort();
+            if (!fontGroup.overlays.isEmpty()) {
+                fontGroup.sort();
+                info.groups.put(OverlayGroup.FONTS, fontGroup);
+            }
         }
 
         @Override
