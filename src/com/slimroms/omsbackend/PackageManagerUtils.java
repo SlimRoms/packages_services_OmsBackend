@@ -76,7 +76,9 @@ public class PackageManagerUtils {
         try {
             mPm = IPackageManager.Stub.asInterface(ServiceManager.getService("package"));
             mInstaller = mPm.getPackageInstaller();
-        } catch (RemoteException e) {}
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
     }
 
     public boolean installPackage(String inPath) throws RemoteException {
@@ -211,30 +213,28 @@ public class PackageManagerUtils {
     }
 
     public boolean uninstallPackage(String packageName) {
-        LocalPackageDeleteObserver obs = new LocalPackageDeleteObserver();
+        LocalIntentReceiver receiver = new LocalIntentReceiver();
         try {
-            mPm.deletePackageAsUser(packageName, obs, 0, UserHandle.USER_CURRENT);
-            synchronized (obs) {
-                while (!obs.finished) {
-                    try {
-                        obs.wait();
-                    } catch (InterruptedException e) {
-                    }
-                }
-            }
+            mInstaller.uninstall(packageName, mContext.getPackageName(), 0,
+                    receiver.getIntentSender(), UserHandle.getCallingUserId());
+            final Intent intent = receiver.getResult();
+            final int status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS,
+                    PackageInstaller.STATUS_FAILURE);
+            return status == PackageInstaller.STATUS_SUCCESS;
         } catch (RemoteException ex) {
             ex.printStackTrace();
         }
-        return obs.result;
+        return false;
     }
 
-    class LocalPackageDeleteObserver extends IPackageDeleteObserver.Stub {
+    class LocalPackageDeleteObserver extends PackageDeleteObserver {
         boolean finished;
         boolean result;
 
         @Override
-        public void packageDeleted(String name, int returnCode) {
+        public void onPackageDeleted(String name, int returnCode, String msg) {
             synchronized (this) {
+                Log.d("TEST", "name - " + name + " : return - " + msg);
                 finished = true;
                 result = returnCode == PackageManager.DELETE_SUCCEEDED;
                 notifyAll();
