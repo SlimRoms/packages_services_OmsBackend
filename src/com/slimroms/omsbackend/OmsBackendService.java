@@ -172,11 +172,14 @@ public class OmsBackendService extends BaseThemeService {
                     }
                     String name = info.metaData.getString("Substratum_Name");
                     String author = info.metaData.getString("Substratum_Author");
+                    boolean supported = info.metaData.getBoolean("supports_third_party_theme_systems");
                     if (!TextUtils.isEmpty(name)) {
                         try {
                             PackageInfo pInfo = pm.getPackageInfo(info.packageName, 0);
                             Theme theme = createTheme(name, info.packageName,
                                     pInfo.versionName, pInfo.versionCode, author, null);
+                            theme.supported = info.metaData
+                                    .getBoolean("supports_third_party_theme_systems");
                             themes.add(theme);
                         } catch (PackageManager.NameNotFoundException e) {
                             e.printStackTrace();
