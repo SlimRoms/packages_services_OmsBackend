@@ -27,6 +27,7 @@ import android.annotation.SuppressLint;
 import android.app.ActivityManagerNative;
 import android.app.IActivityManager;
 import android.content.BroadcastReceiver;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -37,15 +38,21 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.content.res.Configuration;
+import android.database.Cursor;
 import android.graphics.FontListParser;
 import android.graphics.Typeface;
+import android.media.MediaPlayer;
+import android.media.RingtoneManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.net.Uri;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.os.SystemProperties;
 import android.os.UserHandle;
+import android.provider.MediaStore;
 import android.provider.Settings;
+import android.support.v4.util.Pair;
 import android.system.Os;
 import android.text.TextUtils;
 import android.util.DisplayMetrics;
@@ -90,6 +97,21 @@ public class OmsBackendService extends BaseThemeService {
     private static final String THEME_FONT_PATH = "/data/system/theme/fonts";
     private static final String THEME_FONT_METADATA =
             "/data/system/theme/font-meta.json";
+
+    public static final String[] ALLOWED_SOUNDS = {
+            "alarm.mp3",
+            "alarm.ogg",
+            "notification.mp3",
+            "notification.ogg",
+            "ringtone.mp3",
+            "ringtone.ogg",
+            "Effect_Tick.mp3",
+            "Effect_Tick.ogg",
+            "Lock.mp3",
+            "Lock.ogg",
+            "Unlock.mp3",
+            "Unlock.ogg",
+    };
 
     private HashMap<String, String> mSystemUIPackages = new HashMap<>();
 
@@ -301,6 +323,21 @@ public class OmsBackendService extends BaseThemeService {
                         }
                         info.groups.put(OverlayGroup.FONTS, fontGroup);
                     }
+
+                    String[] sounds = themeContext.getAssets().list("audio");
+                    if (sounds.length > 0) {
+                        OverlayGroup soundGroup = new OverlayGroup();
+                        for (String sound : sounds) {
+                            String name = sound.substring(0, sound.lastIndexOf("."));
+                            Overlay so = new Overlay(name, OverlayGroup.SOUNDS, true);
+                            so.overlayPackage = sound;
+                            cacheSounds(themeContext, themeCache, so);
+                            soundGroup.overlays.add(so);
+                        }
+                        info.groups.put(OverlayGroup.SOUNDS, soundGroup);
+
+                    }
+
                     String[] bootanis = themeContext.getAssets().list("bootanimation");
                     if (bootanis.length > 0) {
                         OverlayGroup bootanimations = new OverlayGroup();
@@ -597,6 +634,16 @@ public class OmsBackendService extends BaseThemeService {
                     }
                 }
 
+                // sounds
+                overlays = info.groups.get(OverlayGroup.SOUNDS);
+                if (overlays != null) {
+                    for (Overlay overlay : overlays.overlays) {
+                        if (!overlay.checked) continue;
+
+                        copyAndSetSounds(themeContext, themeCache, overlay);
+                    }
+                }
+
                 //mOverlayManager.refresh(UserHandle.USER_CURRENT);
                 sendFinishedBroadcast();
                 notifyInstallComplete();
@@ -844,7 +891,7 @@ public class OmsBackendService extends BaseThemeService {
     }
 
     private void createFontCache(Context themeContext, Overlay overlay, File themeCache) {
-        File fontPath = new File(themeCache, overlay.overlayName.replace(".zip", ""));
+        File fontPath = new File(themeCache, "fonts/" + overlay.overlayName.replace(".zip", ""));
         if (!fontPath.exists() && !fontPath.mkdirs()) {
             Log.e(TAG, "Unable to create directory " + fontPath.getPath());
         }
@@ -1289,6 +1336,133 @@ public class OmsBackendService extends BaseThemeService {
             zos.closeEntry();
         }
         zos.close();
+    }
+
+    private boolean setAudible(File sound, int type, String name, boolean ui) {
+        final String mimeType = name.endsWith(".ogg") ? "application/ogg" : "application/mp3";
+        ContentValues values = new ContentValues();
+
+        values.put(MediaStore.MediaColumns.DATA, sound.getAbsolutePath());
+        values.put(MediaStore.MediaColumns.TITLE, name);
+        values.put(MediaStore.MediaColumns.MIME_TYPE, mimeType);
+        values.put(MediaStore.MediaColumns.SIZE, sound.length());
+        values.put(MediaStore.Audio.Media.IS_RINGTONE, type ==
+                RingtoneManager.TYPE_RINGTONE && !ui);
+        values.put(MediaStore.Audio.Media.IS_NOTIFICATION,
+                type == RingtoneManager.TYPE_NOTIFICATION && !ui);
+        values.put(MediaStore.Audio.Media.IS_ALARM, type == RingtoneManager.TYPE_ALARM && !ui);
+        values.put(MediaStore.Audio.Media.IS_MUSIC, ui);
+
+        Uri uri = MediaStore.Audio.Media.getContentUriForPath(sound.getAbsolutePath());
+        Uri newUri = null;
+        Cursor c = getContentResolver().query(uri, new String[] { MediaStore.MediaColumns._ID },
+                MediaStore.MediaColumns.DATA + "='" + sound.getAbsolutePath() + "'", null, null);
+        if (c != null && c.getCount() > 0) {
+            c.moveToFirst();
+            String id = String.valueOf(c.getLong(0));
+            c.close();
+
+            newUri = Uri.withAppendedPath(Uri.parse("content://media/internal/audio/media"), id);
+            getContentResolver().update(uri, values, MediaStore.MediaColumns._ID + "=" + id, null);
+        }
+
+        if (newUri == null) {
+            newUri = getContentResolver().insert(uri, values);
+        }
+
+        try {
+            RingtoneManager.setActualDefaultRingtoneUri(this, type, newUri);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+        return true;
+    }
+
+    private void copyAndSetSounds(Context themeContext, File themeCache, Overlay overlay) {
+        File soundPath = new File(overlay.tag);
+        if (!soundPath.exists()) {
+            cacheSounds(themeContext, themeCache, overlay);
+        }
+
+        try {
+            FileUtils.copyDirectory(new File(overlay.tag), new File("/data/system/theme/audio"));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        ArrayList<String> paths = new ArrayList<>();
+        getSounds(new File("/data/system/theme/audio"), paths);
+
+        for (String path : paths) {
+            if (path.contains("ui")) {
+                if (path.contains("Lock")) {
+                    Settings.Global.putStringForUser(getContentResolver(),
+                            "lock_sound", path, UserHandle.USER_SYSTEM);
+                } else if (path.contains("Unlock")) {
+                    Settings.Global.putStringForUser(getContentResolver(),
+                            "unlock_sound", path, UserHandle.USER_SYSTEM);
+                } else if (path.contains("Effect_Tick")) {
+                    setAudible(new File(path), RingtoneManager.TYPE_RINGTONE,
+                            new File(path).getName(), true);
+                } else if (path.contains("LowBattery")) {
+                    Settings.Global.putStringForUser(getContentResolver(),
+                            "low_battery_sound", path, UserHandle.USER_SYSTEM);
+                }
+            } else if (path.contains("alarms")) {
+                setAudible(new File(path), RingtoneManager.TYPE_ALARM,
+                        new File(path).getName(), false);
+            } else if (path.contains("notifications")) {
+                setAudible(new File(path), RingtoneManager.TYPE_NOTIFICATION,
+                        new File(path).getName(), false);
+            } else if (path.contains("ringtones")) {
+                setAudible(new File(path), RingtoneManager.TYPE_RINGTONE,
+                        new File(path).getName(), false);
+            }
+        }
+    }
+
+    private void getSounds(File path, ArrayList<String> paths) {
+        for (File file : path.listFiles()) {
+            if (file.isDirectory()) {
+                getSounds(file, paths);
+            } else {
+                paths.add(file.getAbsolutePath());
+            }
+        }
+    }
+
+    private void cacheSounds(Context themeContext, File themeCache, Overlay sound) {
+        File soundPath = new File(themeCache,  "sounds/" + sound.overlayName);
+        if (!soundPath.exists() && !soundPath.mkdirs()) {
+            Log.e(TAG, "Unable to create directory " + soundPath.getPath());
+        }
+        try (ZipInputStream zis = new ZipInputStream(
+                themeContext.getAssets().open("audio/" + sound.overlayPackage))) {
+            ZipEntry entry;
+            int count;
+            byte[] buf = new byte[4096];
+            while ((entry = zis.getNextEntry()) != null) {
+                File file = new File(soundPath, entry.getName());
+                if (entry.isDirectory()) {
+                    file.mkdirs();
+                    continue;
+                }
+                Log.d("TEST", "entry - " + file.getName());
+                if (!Arrays.asList(ALLOWED_SOUNDS).contains(file.getName()))
+                    continue;
+                try (FileOutputStream os = new FileOutputStream(file)) {
+                    while ((count = zis.read(buf)) != -1) {
+                        os.write(buf, 0, count);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                Shell.chmod(file, 777);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        sound.tag = soundPath.getAbsolutePath();
     }
 
     private void writeFontsXML(String path) {
