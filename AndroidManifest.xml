@@ -56,6 +56,20 @@
             </intent-filter>
         </service>
 
+        <activity android:name=".UnsupportedThemeDialogActivity"
+            android:theme="@android:style/Theme.Material.Dialog.Alert"/>
+
+        <receiver android:name=".PackageListener">
+            <intent-filter>
+                <action android:name="android.intent.action.PACKAGE_ADDED" />
+                <action android:name="android.intent.action.PACKAGE_CHANGED" />
+                <action android:name="android.intent.action.PACKAGE_REMOVED" />
+                <action android:name="android.intent.action.PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.PACKAGE_FULLY_REMOVED" />
+                <data android:scheme="package" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>
