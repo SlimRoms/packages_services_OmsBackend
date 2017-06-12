@@ -265,6 +265,8 @@ public class OmsBackendService extends BaseThemeService {
                     final String json = FileUtils.readFileToString(bootanimMetadata,
                             Charset.defaultCharset());
                     final Overlay overlay = gson.fromJson(json, Overlay.class);
+                    overlay.isOverlayEnabled = true;
+                    overlay.isOverlayInstalled = true;
                     overlay.checked = false;
                     bootanimationGroup.overlays.add(overlay);
                 }
@@ -286,6 +288,8 @@ public class OmsBackendService extends BaseThemeService {
                     final String json = FileUtils.readFileToString(fontMetadata,
                             Charset.defaultCharset());
                     final Overlay overlay = gson.fromJson(json, Overlay.class);
+                    overlay.isOverlayEnabled = true;
+                    overlay.isOverlayInstalled = true;
                     overlay.checked = false;
                     fontGroup.overlays.add(overlay);
                 } catch (IOException e) {
@@ -644,7 +648,7 @@ public class OmsBackendService extends BaseThemeService {
                     }
                 }
 
-                //mOverlayManager.refresh(UserHandle.USER_CURRENT);
+                mOverlayManager.refresh(UserHandle.USER_CURRENT);
                 sendFinishedBroadcast();
                 notifyInstallComplete();
                 // Housekeeping: cleanup cache
@@ -956,7 +960,7 @@ public class OmsBackendService extends BaseThemeService {
                 }
                 try {
                     if (!mOverlayManager.setEnabled(packageName,
-                            true, UserHandle.USER_CURRENT, true)) {
+                            true, UserHandle.USER_CURRENT, false)) {
                         Log.e(TAG, "Failed to enable overlay - " + packageName);
                     } else {
                         Log.d(TAG, "Successfully enabled overlay - " + packageName);
