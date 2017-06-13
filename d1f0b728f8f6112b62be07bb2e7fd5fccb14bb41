@@ -1,0 +1,50 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "6c569b0d_53fd09e4",
+        "filename": "src/com/slimroms/omsbackend/OmsBackendService.java",
+        "patchSetId": 6
+      },
+      "lineNbr": 249,
+      "author": {
+        "id": 1000097
+      },
+      "writtenOn": "2017-06-13T10:14:47Z",
+      "side": 1,
+      "message": "should use constants?",
+      "range": {
+        "startLine": 248,
+        "startChar": 0,
+        "endLine": 249,
+        "endChar": 79
+      },
+      "revId": "d1f0b728f8f6112b62be07bb2e7fd5fccb14bb41",
+      "serverId": "f8201d64-d729-4630-b91d-5f8be02869f0",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "4c91c2f8_39d25ac4",
+        "filename": "src/com/slimroms/omsbackend/OmsBackendService.java",
+        "patchSetId": 6
+      },
+      "lineNbr": 656,
+      "author": {
+        "id": 1000097
+      },
+      "writtenOn": "2017-06-13T10:14:47Z",
+      "side": 1,
+      "message": "should use constants?",
+      "range": {
+        "startLine": 655,
+        "startChar": 0,
+        "endLine": 656,
+        "endChar": 91
+      },
+      "revId": "d1f0b728f8f6112b62be07bb2e7fd5fccb14bb41",
+      "serverId": "f8201d64-d729-4630-b91d-5f8be02869f0",
+      "unresolved": false
+    }
+  ]
+}
