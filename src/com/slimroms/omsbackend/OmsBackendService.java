@@ -734,10 +734,10 @@ public class OmsBackendService extends BaseThemeService {
                 return null;
             }
         }
-        // chmod 755
+        // chmod 700
         try {
-            Shell.chmod(aaptDir.getAbsolutePath(), 744);
-            Shell.chmod(aaptFile.getAbsolutePath(), 744);
+            Shell.chmod(aaptDir.getAbsolutePath(), 700);
+            Shell.chmod(aaptFile.getAbsolutePath(), 700);
         } catch (Exception e) {
             e.printStackTrace();
         }
