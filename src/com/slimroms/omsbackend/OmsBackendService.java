@@ -230,6 +230,7 @@ public class OmsBackendService extends BaseThemeService {
                         String overlayName = (targetInfo != null)
                                 ? targetInfo.loadLabel(getPackageManager()).toString()
                                 : aInfo.loadLabel(getPackageManager()).toString();
+                        Log.d("TEST", "overlayName - " + overlayName);
                         overlay = new Overlay(overlayName, targetPackage, targetPackageInstalled);
                     }
                     if (overlay != null) {
@@ -740,6 +741,7 @@ public class OmsBackendService extends BaseThemeService {
                     Log.d(TAG, sb.toString());
                     List<OverlayInfo> ois = overlayInfos.get(getTargetPackage(overlay.targetPackage));
                     if (ois != null) {
+                        mReboot = true;
                         for (OverlayInfo oi : ois) {
                             if (oi.packageName.equals(overlay.overlayPackage)) {
                                 notifyUninstallProgress(overlays.size(), overlays.indexOf(overlay),
