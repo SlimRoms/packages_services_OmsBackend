@@ -245,8 +245,8 @@ public class OmsBackendService extends BaseThemeService {
                         overlay.overlayPackage = overlayInfo.packageName;
                         overlay.isOverlayEnabled =
                                 (overlayInfo.state == OverlayInfo.STATE_APPROVED_ENABLED);
-                        overlay.overlayVersion =
-                                Integer.toString(aInfo.metaData.getInt("theme_version", -1));
+                        overlay.overlayVersion = aInfo.metaData.getInt("overlay_version", -1);
+                        overlay.themeVersion = aInfo.metaData.getString("theme_version", "");
                         overlay.themePackage = aInfo.metaData.getString("theme_package", null);
                         if (overlay.themePackage == null) {
                             // fallback substratum compatibility
@@ -495,12 +495,12 @@ public class OmsBackendService extends BaseThemeService {
                             PackageInfo appInfo = getPackageManager().getPackageInfo(
                                     overlay.targetPackage, 0);
                             if (aInfo.metaData != null) {
-                                int themeVersion =
-                                        aInfo.metaData.getInt("theme_version", -1);
-                                sb.append(", installedVersion=" + themeVersion);
+                                int overlayVersion =
+                                        aInfo.metaData.getInt("overlay_version", -1);
+                                sb.append(", installedVersion=" + overlayVersion);
                                 int appVersion =
                                         aInfo.metaData.getInt("app_version", -1);
-                                if (themeVersion == theme.themeVersionCode
+                                if (overlayVersion == theme.themeVersionCode
                                         && appVersion == appInfo.versionCode
                                         && !checkStyles(overlay, prefs)) {
                                     Log.d(TAG, sb.toString());
@@ -829,6 +829,8 @@ public class OmsBackendService extends BaseThemeService {
         manifest.append("android:targetPackage=\"" + targetPackage + "\"/>\n");
         manifest.append("<application>\n");
         manifest.append("<meta-data android:name=\"theme_version\" android:value=\""
+                + theme.themeVersion + "\"/>\n");
+        manifest.append("<meta-data android:name=\"overlay_version\" android:value=\""
                 + theme.themeVersionCode + "\"/>\n");
         manifest.append("<meta-data android:name=\"theme_package\" android:value=\""
                 + theme.packageName + "\"/>\n");
@@ -1059,8 +1061,8 @@ public class OmsBackendService extends BaseThemeService {
                                 ApplicationInfo oai = getPackageManager()
                                         .getApplicationInfo(overlay.overlayPackage,
                                                 PackageManager.GET_META_DATA);
-                                overlay.overlayVersion = oai.metaData
-                                        .getString("theme_version", "").replace("v=", "");
+                                overlay.overlayVersion = oai.metaData.getInt("overlay_version");
+                                overlay.themeVersion = oai.metaData.getString("theme_version", "");
                             } catch (PackageManager.NameNotFoundException ex) {
                                 // ignore
                             }
