@@ -29,16 +29,21 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.os.AsyncTask;
 import android.text.TextUtils;
-import android.util.Log;
 
 public class PackageListener extends BroadcastReceiver {
     @Override
     public void onReceive(final Context context, Intent intent) {
 
         String action = intent.getAction();
-        if (TextUtils.isEmpty(action)) return;
-        if (intent.getData() == null) return;
-        if (!intent.getData().getScheme().equals("package")) return;
+        if (TextUtils.isEmpty(action)) {
+            return;
+        }
+        if (intent.getData() == null) {
+            return;
+        }
+        if (!intent.getData().getScheme().equals("package")) {
+            return;
+        }
 
         final String packageName = intent.getData().getSchemeSpecificPart();
         boolean replacing = intent.getBooleanExtra(Intent.EXTRA_REPLACING, false);
@@ -67,7 +72,7 @@ public class PackageListener extends BroadcastReceiver {
                         notifBuilder.setContentText(message);
                         notifBuilder.setSmallIcon(R.drawable.delete);
                         notifBuilder.setPriority(Notification.PRIORITY_MAX);
-                        notifBuilder.setVibrate(new long[] { 500 });
+                        notifBuilder.setVibrate(new long[]{500});
                         context.getSystemService(NotificationManager.class)
                                 .notify(101, notifBuilder.build());
 

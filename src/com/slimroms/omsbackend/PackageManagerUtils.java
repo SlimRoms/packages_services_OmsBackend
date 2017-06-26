@@ -20,42 +20,35 @@
 package com.slimroms.omsbackend;
 
 import android.app.ActivityManager;
-import android.app.PackageDeleteObserver;
 import android.content.Context;
 import android.content.IIntentReceiver;
 import android.content.IIntentSender;
 import android.content.Intent;
 import android.content.IntentSender;
-import android.content.pm.IPackageDeleteObserver;
 import android.content.pm.IPackageInstaller;
 import android.content.pm.IPackageManager;
 import android.content.pm.PackageInstaller;
 import android.content.pm.PackageInstaller.SessionInfo;
 import android.content.pm.PackageInstaller.SessionParams;
 import android.content.pm.PackageManager;
-import android.content.pm.PackageParser;
 import android.os.Binder;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.HandlerThread;
 import android.os.RemoteException;
-import android.os.ResultReceiver;
 import android.os.ServiceManager;
 import android.os.UserHandle;
 import android.util.Log;
 
 import com.android.internal.util.SizedInputStream;
 
-import libcore.io.IoUtils;
-
 import java.io.File;
-import java.io.FileDescriptor;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
+
+import libcore.io.IoUtils;
 
 public class PackageManagerUtils {
 
@@ -65,18 +58,13 @@ public class PackageManagerUtils {
     private IPackageManager mPm;
     private IPackageInstaller mInstaller;
 
-    private static class InstallParams {
-        SessionParams sessionParams;
-        String installerPackageName = "com.slimroms.omsbackend";
-        int userId = UserHandle.USER_ALL;
-    }
-
     public PackageManagerUtils(Context context) {
         mContext = context;
         try {
             mPm = IPackageManager.Stub.asInterface(ServiceManager.getService("package"));
             mInstaller = mPm.getPackageInstaller();
-        } catch (RemoteException e) {}
+        } catch (RemoteException e) {
+        }
     }
 
     public boolean installPackage(String inPath) throws RemoteException {
@@ -133,7 +121,7 @@ public class PackageManagerUtils {
     }
 
     private int doWriteSession(int sessionId, String inPath, long sizeBytes, String splitName,
-            boolean logSuccess) throws RemoteException {
+                               boolean logSuccess) throws RemoteException {
         if ("-".equals(inPath)) {
             inPath = null;
         } else if (inPath != null) {
@@ -225,13 +213,20 @@ public class PackageManagerUtils {
         return false;
     }
 
+    private static class InstallParams {
+        SessionParams sessionParams;
+        String installerPackageName = "com.slimroms.omsbackend";
+        int userId = UserHandle.USER_ALL;
+    }
+
     private static class LocalIntentReceiver {
         private final SynchronousQueue<Intent> mResult = new SynchronousQueue<>();
 
         private IIntentSender.Stub mLocalSender = new IIntentSender.Stub() {
             @Override
             public void send(int code, Intent intent, String resolvedType,
-                    IIntentReceiver finishedReceiver, String requiredPermission, Bundle options) {
+                             IIntentReceiver finishedReceiver, String requiredPermission, Bundle
+                                     options) {
                 try {
                     mResult.offer(intent, 5, TimeUnit.SECONDS);
                 } catch (InterruptedException e) {
