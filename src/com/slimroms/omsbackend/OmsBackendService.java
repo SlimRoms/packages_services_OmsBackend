@@ -689,7 +689,7 @@ public class OmsBackendService extends BaseThemeService {
                     }
                 }
 
-                mOverlayManager.refresh(UserHandle.USER_CURRENT);
+                //mOverlayManager.refresh(UserHandle.USER_CURRENT);
                 sendFinishedBroadcast();
                 notifyInstallComplete();
                 // Housekeeping: cleanup cache
@@ -1001,7 +1001,7 @@ public class OmsBackendService extends BaseThemeService {
                 }
                 try {
                     if (!mOverlayManager.setEnabled(packageName,
-                            true, UserHandle.USER_CURRENT, false)) {
+                            true, UserHandle.USER_CURRENT, true)) {
                         Log.e(TAG, "Failed to enable overlay - " + packageName);
                     } else {
                         Log.d(TAG, "Successfully enabled overlay - " + packageName);
